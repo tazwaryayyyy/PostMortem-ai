@@ -1,0 +1,159 @@
+{
+  "incident_id": "incident_a",
+  "title": "API Returning 500 Errors — OAuth Users",
+  "start_time": "2024-01-15T14:00:00Z",
+  "end_time": "2024-01-15T14:47:00Z",
+  "impact": {
+    "duration_minutes": 47,
+    "affected_users": "~12,000",
+    "revenue_impact": "$38,000",
+    "severity": "P1"
+  },
+  "signals": {
+    "pagerduty": [
+      {
+        "timestamp": "2024-01-15T14:05:00Z",
+        "title": "API Latency Spike — P99 > 2000ms",
+        "severity": "critical",
+        "service": "api"
+      }
+    ],
+    "slack": [
+      {
+        "timestamp": "2024-01-15T14:06:00Z",
+        "channel": "#incidents",
+        "user": "@oncall",
+        "message": "Getting 500 errors from enterprise customers — anyone else seeing this?"
+      },
+      {
+        "timestamp": "2024-01-15T14:08:00Z",
+        "channel": "#incidents",
+        "user": "@sre-lead",
+        "message": "Latency looks normal to me on Datadog? P99 is 180ms"
+      },
+      {
+        "timestamp": "2024-01-15T14:11:00Z",
+        "channel": "#incidents",
+        "user": "@backend",
+        "message": "DB connections slightly elevated but nothing crazy, 23-31% utilization"
+      },
+      {
+        "timestamp": "2024-01-15T14:19:00Z",
+        "channel": "#incidents",
+        "user": "@frontend-lead",
+        "message": "Wait — errors are actually 401s not 500s. Only OAuth users are affected"
+      }
+    ],
+    "logs": [
+      {
+        "timestamp": "2024-01-15T14:01:00Z",
+        "service": "auth",
+        "level": "error",
+        "message": "Authentication failed: invalid_token for user_id=oauth_847291"
+      },
+      {
+        "timestamp": "2024-01-15T14:01:30Z",
+        "service": "auth",
+        "level": "error",
+        "message": "OAuth token signature verification failed: algorithm mismatch HS256 != RS256"
+      },
+      {
+        "timestamp": "2024-01-15T14:02:00Z",
+        "service": "auth",
+        "level": "error",
+        "message": "Authentication failed: invalid_token for user_id=oauth_293847"
+      },
+      {
+        "timestamp": "2024-01-15T14:02:30Z",
+        "service": "auth",
+        "level": "error",
+        "message": "OAuth token signature verification failed: algorithm mismatch HS256 != RS256"
+      },
+      {
+        "timestamp": "2024-01-15T14:03:00Z",
+        "service": "api",
+        "level": "error",
+        "message": "401 Unauthorized — rejected 847 requests in last 60s from OAuth users"
+      }
+    ],
+    "github": [
+      {
+        "timestamp": "2024-01-15T12:00:00Z",
+        "repo": "api-service",
+        "sha": "a3f9d21",
+        "author": "dev-alice",
+        "message": "feat: update OAuth token validation to use RS256 algorithm"
+      }
+    ],
+    "metrics": {
+      "database": {
+        "active_connections": [
+          {"timestamp": "2024-01-15T13:55:00Z", "value": 18},
+          {"timestamp": "2024-01-15T14:00:00Z", "value": 23},
+          {"timestamp": "2024-01-15T14:15:00Z", "value": 27},
+          {"timestamp": "2024-01-15T14:30:00Z", "value": 31}
+        ],
+        "cpu_percent": [
+          {"timestamp": "2024-01-15T13:55:00Z", "value": 12},
+          {"timestamp": "2024-01-15T14:00:00Z", "value": 15},
+          {"timestamp": "2024-01-15T14:15:00Z", "value": 18},
+          {"timestamp": "2024-01-15T14:30:00Z", "value": 22}
+        ]
+      },
+      "auth": {
+        "latency_p99": [
+          {"timestamp": "2024-01-15T13:55:00Z", "value": 45},
+          {"timestamp": "2024-01-15T14:00:00Z", "value": 47},
+          {"timestamp": "2024-01-15T14:02:00Z", "value": 850},
+          {"timestamp": "2024-01-15T14:15:00Z", "value": 920}
+        ],
+        "error_rate": [
+          {"timestamp": "2024-01-15T13:55:00Z", "value": 0.1},
+          {"timestamp": "2024-01-15T14:01:00Z", "value": 23.4},
+          {"timestamp": "2024-01-15T14:15:00Z", "value": 31.2}
+        ]
+      }
+    }
+  },
+  "red_herrings": [
+    "PagerDuty alert says latency spike, but overall latency is normal — only OAuth auth path is slow",
+    "DB connections at 23-31% look suspicious but are nowhere near exhaustion threshold of 100%"
+  ],
+  "correct_root_cause": "Deploy at 12:00 changed OAuth token validation from HS256 to RS256 algorithm. Existing OAuth tokens were signed with HS256 — they started failing validation 2 hours later when user sessions required re-authentication. The algorithm mismatch caused auth latency to spike to 850ms and generated 401 errors exclusively for OAuth users.",
+  "expected_hypothesis_sequence": [
+    {
+      "hypothesis": "Database connection pool exhaustion causing timeouts",
+      "should_reject": true,
+      "rejection_evidence": "DB connections at 23-31% capacity. Exhaustion threshold is 100%. CPU at 15-22% — no connection storm signature. Evidence is unambiguous: DB is healthy.",
+      "data_to_query": [
+        "query_metrics(database, active_connections)",
+        "query_metrics(database, cpu_percent)"
+      ]
+    },
+    {
+      "hypothesis": "Third-party OAuth provider degradation or outage",
+      "should_reject": true,
+      "rejection_evidence": "Auth logs show 'algorithm mismatch HS256 != RS256' — not a connectivity failure or provider timeout. This is a local validation error, not an upstream dependency issue.",
+      "data_to_query": [
+        "query_logs(auth, error)"
+      ]
+    },
+    {
+      "hypothesis": "Recent auth deploy broke OAuth token validation algorithm",
+      "should_confirm": true,
+      "confirming_evidence": "GitHub deploy at 12:00 changed validation from HS256 to RS256. Auth latency spiked to 850ms at 14:02 — two hours post-deploy when OAuth sessions expired and re-authenticated. Error pattern 'algorithm mismatch' confirms existing HS256 tokens fail against the new RS256 validator. 401 errors affect only OAuth users, not session-based users.",
+      "data_to_query": [
+        "query_github(api-service)",
+        "query_metrics(auth, latency_p99)"
+      ]
+    }
+  ],
+  "action_items": [
+    "Revert auth middleware to HS256 or run token migration script to re-sign existing OAuth tokens as RS256",
+    "Add pre-deploy token compatibility check to CI pipeline — fail build if algorithm changes would invalidate live tokens",
+    "Add OAuth-specific error rate monitoring separate from general API error rate",
+    "Document OAuth token algorithm migration runbook with rollback procedure",
+    "Add canary deploy gate for auth service changes — route 1% of OAuth traffic before full rollout"
+  ],
+  "detection_gap": "Standard error rate monitoring did not distinguish OAuth from non-OAuth users. PagerDuty alert fired on latency (misleading) not error type. OAuth-specific 401 errors were invisible in aggregated dashboards for 19 minutes."
+}

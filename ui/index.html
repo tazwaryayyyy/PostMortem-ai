@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PostMortem.ai — Incident Investigation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Variables ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #080b10;
+      --bg-panel:  #0d1117;
+      --bg-card:   #111720;
+      --border:    #1e2a38;
+      --border-hi: #2a3f58;
+      --text:      #c8d6e5;
+      --text-dim:  #5a7490;
+      --text-muted:#344657;
+      --green:     #00e5a0;
+      --green-dim: #00a36e;
+      --red:       #ff4757;
+      --red-dim:   #8b1c2e;
+      --yellow:    #ffd32a;
+      --yellow-dim:#7a6010;
+      --blue:      #3de0ff;
+      --blue-dim:  #1a6070;
+      --purple:    #a78bfa;
+      --accent:    #00e5a0;
+      --radius:    6px;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-ui:   'Syne', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.5;
+      overflow: hidden;
+    }
+
+    /* ── Scanline overlay ────────────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.07) 2px,
+        rgba(0,0,0,0.07) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── Layout ──────────────────────────────────────────────────────── */
+    #app {
+      display: grid;
+      grid-template-rows: 56px 1fr;
+      height: 100vh;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-panel);
+      gap: 16px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-ui);
+      font-weight: 800;
+      font-size: 18px;
+      color: var(--green);
+      letter-spacing: -0.5px;
+      white-space: nowrap;
+    }
+
+    .logo-dot { color: var(--text-dim); }
+
+    .logo-icon {
+      width: 28px; height: 28px;
+      border: 2px solid var(--green);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      animation: pulse-border 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0,229,160,0.4); }
+      50%       { box-shadow: 0 0 0 6px rgba(0,229,160,0); }
+    }
+
+    .header-center {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      max-width: 620px;
+    }
+
+    .incident-select {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 6px 10px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .incident-select:focus { border-color: var(--green-dim); }
+
+    .btn {
+      padding: 6px 14px;
+      border-radius: var(--radius);
+      border: none;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--green);
+      color: #000;
+    }
+
+    .btn-primary:hover { background: #00ffb3; }
+    .btn-primary:disabled { background: var(--green-dim); color: #001a0f; cursor: not-allowed; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover { border-color: var(--border-hi); color: var(--text); }
+    .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .state-badge {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 100px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      transition: all 0.3s ease;
+    }
+
+    .state-badge.active {
+      background: rgba(0,229,160,0.12);
+      border-color: var(--green-dim);
+      color: var(--green);
+    }
+
+    /* ── Main 4-panel grid ───────────────────────────────────────────── */
+    main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      overflow: hidden;
+    }
+
+    .panel {
+      background: var(--bg-panel);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-card);
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      font-family: var(--font-ui);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-dim);
+    }
+
+    .panel-count {
+      font-size: 10px;
+      color: var(--text-muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 1px 7px;
+      border-radius: 100px;
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    /* Scrollbar */
+    .panel-body::-webkit-scrollbar { width: 4px; }
+    .panel-body::-webkit-scrollbar-track { background: transparent; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── Empty state ─────────────────────────────────────────────────── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 8px;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .empty-icon { font-size: 28px; opacity: 0.4; }
+
+    /* ── Signal entry (Panel 1) ──────────────────────────────────────── */
+    .signal-entry {
+      padding: 7px 10px;
+      border-radius: var(--radius);
+      border-left: 3px solid transparent;
+      background: var(--bg-card);
+      animation: slide-in 0.25s ease;
+    }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateX(-6px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .signal-entry.level-error  { border-color: var(--red); }
+    .signal-entry.level-warn   { border-color: var(--yellow); }
+    .signal-entry.level-info   { border-color: var(--blue); }
+
+    .signal-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 3px;
+    }
+
+    .signal-source {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+    }
+
+    .signal-entry.level-error  .signal-source { color: var(--red); }
+    .signal-entry.level-warn   .signal-source { color: var(--yellow); }
+    .signal-entry.level-info   .signal-source { color: var(--blue); }
+
+    .signal-time {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .signal-msg {
+      color: var(--text);
+      font-size: 11.5px;
+      word-break: break-word;
+    }
+
+    /* ── Hypothesis card (Panel 2) ───────────────────────────────────── */
+    .hyp-card {
+      padding: 9px 12px;
+      border-radius: var(--radius);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      transition: border-color 0.3s ease, background 0.3s ease;
+      animation: slide-in 0.3s ease;
+    }
+
+    .hyp-card.testing {
+      border-color: var(--yellow-dim);
+      background: rgba(255,211,42,0.05);
+    }
+
+    .hyp-card.rejected {
+      border-color: var(--red-dim);
+      background: rgba(255,71,87,0.06);
+      opacity: 0.7;
+    }
+
+    .hyp-card.confirmed {
+      border-color: var(--green-dim);
+      background: rgba(0,229,160,0.06);
+    }
+
+    .hyp-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .hyp-num {
+      font-size: 10px;
+      font-weight: 700;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .hyp-card.confirmed .hyp-num { border-color: var(--green); color: var(--green); }
+    .hyp-card.rejected  .hyp-num { border-color: var(--red); color: var(--red); }
+    .hyp-card.testing   .hyp-num { border-color: var(--yellow); color: var(--yellow); }
+
+    .hyp-desc { font-size: 11.5px; color: var(--text); flex: 1; }
+
+    .hyp-status-badge {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      padding: 2px 7px;
+      border-radius: 100px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .badge-pending  { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
+    .badge-testing  { background: rgba(255,211,42,0.15); color: var(--yellow); }
+    .badge-rejected { background: rgba(255,71,87,0.15); color: var(--red); }
+    .badge-confirmed{ background: rgba(0,229,160,0.15); color: var(--green); }
+
+    .hyp-confidence {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .conf-bar {
+      flex: 1;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .conf-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.5s ease;
+    }
+
+    .hyp-card.confirmed .conf-fill { background: var(--green); }
+    .hyp-card.rejected  .conf-fill { background: var(--red); }
+    .hyp-card.testing   .conf-fill { background: var(--yellow); }
+    .hyp-card           .conf-fill { background: var(--text-dim); }
+
+    .conf-label { font-size: 10px; color: var(--text-dim); }
+
+    .hyp-reason {
+      font-size: 10.5px;
+      color: var(--text-dim);
+      border-top: 1px solid var(--border);
+      padding-top: 5px;
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    .hyp-reason.rejection { color: #e86a77; }
+    .hyp-reason.confirmation { color: var(--green-dim); }
+
+    /* ── Reasoning trace (Panel 3) ───────────────────────────────────── */
+    .trace-entry {
+      display: flex;
+      gap: 10px;
+      animation: slide-in 0.2s ease;
+    }
+
+    .trace-line {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+      width: 20px;
+    }
+
+    .trace-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      border: 2px solid var(--text-muted);
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+
+    .trace-dot.state   { border-color: var(--blue); background: var(--blue); }
+    .trace-dot.tool    { border-color: var(--yellow); background: var(--yellow); }
+    .trace-dot.result  { border-color: var(--text-dim); }
+    .trace-dot.reject  { border-color: var(--red); background: var(--red); }
+    .trace-dot.confirm { border-color: var(--green); background: var(--green); }
+    .trace-dot.flag    { border-color: var(--purple); background: var(--purple); }
+
+    .trace-connector {
+      flex: 1;
+      width: 1px;
+      background: var(--border);
+      min-height: 10px;
+      margin: 2px 0;
+    }
+
+    .trace-content { flex: 1; padding-bottom: 8px; }
+
+    .trace-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .trace-label.state   { color: var(--blue); }
+    .trace-label.tool    { color: var(--yellow); }
+    .trace-label.result  { color: var(--text-dim); }
+    .trace-label.reject  { color: var(--red); }
+    .trace-label.confirm { color: var(--green); }
+    .trace-label.flag    { color: var(--purple); }
+    .trace-label.signal  { color: var(--text-muted); }
+
+    .trace-text {
+      font-size: 11px;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .trace-data {
+      margin-top: 4px;
+      padding: 6px 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 10px;
+      color: var(--text-dim);
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 80px;
+      overflow-y: auto;
+    }
+
+    /* ── Post-mortem panel (Panel 4) ─────────────────────────────────── */
+    .pm-section {
+      margin-bottom: 10px;
+      animation: slide-in 0.3s ease;
+    }
+
+    .pm-section-title {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pm-section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .pm-root-cause {
+      padding: 10px 12px;
+      background: rgba(0,229,160,0.06);
+      border: 1px solid var(--green-dim);
+      border-radius: var(--radius);
+      font-size: 11.5px;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .pm-confidence {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 10px;
+      color: var(--green);
+    }
+
+    .pm-impact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .pm-impact-card {
+      padding: 8px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .pm-impact-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 3px;
+    }
+
+    .pm-impact-value {
+      font-size: 14px;
+      font-weight: 700;
+      font-family: var(--font-ui);
+      color: var(--text);
+    }
+
+    .pm-impact-value.severity-p1 { color: var(--red); }
+
+    .pm-rejected-item {
+      padding: 6px 10px;
+      background: rgba(255,71,87,0.05);
+      border-left: 2px solid var(--red-dim);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      font-size: 10.5px;
+      color: var(--text-dim);
+      line-height: 1.5;
+      margin-bottom: 4px;
+    }
+
+    .pm-action-item {
+      display: flex;
+      gap: 8px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .pm-action-item:last-child { border-bottom: none; }
+
+    .action-num {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--green);
+      padding-top: 2px;
+      flex-shrink: 0;
+    }
+
+    .pm-detection-gap {
+      padding: 8px 10px;
+      background: rgba(255,211,42,0.05);
+      border: 1px solid var(--yellow-dim);
+      border-radius: var(--radius);
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    /* ── Governance gate ─────────────────────────────────────────────── */
+    #governance-gate {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(8,11,16,0.9);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #governance-gate.visible { display: flex; }
+
+    .gate-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--green-dim);
+      border-radius: 10px;
+      padding: 28px 32px;
+      max-width: 480px;
+      width: 90%;
+      box-shadow: 0 0 60px rgba(0,229,160,0.1);
+      animation: gate-in 0.3s ease;
+    }
+
+    @keyframes gate-in {
+      from { opacity: 0; transform: scale(0.95); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .gate-title {
+      font-family: var(--font-ui);
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--green);
+      margin-bottom: 6px;
+    }
+
+    .gate-subtitle {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
+    .gate-root-cause {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-size: 11.5px;
+      color: var(--text);
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    .gate-confidence {
+      font-size: 12px;
+      color: var(--green);
+      margin-bottom: 18px;
+    }
+
+    .gate-actions { display: flex; gap: 10px; }
+
+    /* ── Confidence warning ───────────────────────────────────────────── */
+    .conf-warning {
+      padding: 10px 12px;
+      background: rgba(167,139,250,0.08);
+      border: 1px solid rgba(167,139,250,0.3);
+      border-radius: var(--radius);
+      font-size: 11px;
+      color: var(--purple);
+      line-height: 1.6;
+      animation: slide-in 0.3s ease;
+      margin-bottom: 4px;
+    }
+
+    /* ── Spinner ─────────────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border: 2px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Timer ───────────────────────────────────────────────────────── */
+    .timer {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⊕</div>
+      PostMortem<span class="logo-dot">.</span>ai
+    </div>
+
+    <div class="header-center">
+      <select id="incident-select" class="incident-select">
+        <option value="">— Select an incident —</option>
+        <option value="incident_a">P1 · API Returning 500 Errors — OAuth Users · $38K · 47 min</option>
+        <option value="incident_b">P1 · Database Crash at 2AM · $21K · 31 min</option>
+        <option value="incident_c">P1 · Silent 504 Errors — No Obvious Cause · $94K · 68 min</option>
+      </select>
+      <button class="btn btn-primary" id="btn-investigate">Investigate</button>
+      <button class="btn btn-ghost" id="btn-random">⟳ Random</button>
+    </div>
+
+    <div class="header-right">
+      <div class="state-badge" id="state-badge">IDLE</div>
+      <div class="timer" id="timer">00:00</div>
+    </div>
+  </header>
+
+  <!-- ── 4-panel main grid ───────────────────────────────────────────── -->
+  <main>
+    <!-- Panel 1: Signal Feed -->
+    <div class="panel" id="panel-signals">
+      <div class="panel-header">
+        <span class="panel-title">Signal Feed</span>
+        <span class="panel-count" id="signal-count">0 signals</span>
+      </div>
+      <div class="panel-body" id="signal-feed">
+        <div class="empty-state">
+          <div class="empty-icon">📡</div>
+          <div>Waiting for incident...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel 2: Hypothesis Board -->
+    <div class="panel" id="panel-hypotheses">
+      <div class="panel-header">
+        <span class="panel-title">Hypothesis Board</span>
+        <span class="panel-count" id="hyp-count">0 hypotheses</span>
+      </div>
+      <div class="panel-body" id="hyp-board">
+        <div class="empty-state">
+          <div class="empty-icon">🔬</div>
+          <div>Awaiting signals...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel 3: Reasoning Trace -->
+    <div class="panel" id="panel-trace">
+      <div class="panel-header">
+        <span class="panel-title">Reasoning Trace</span>
+        <span class="panel-count" id="trace-count">0 steps</span>
+      </div>
+      <div class="panel-body" id="reasoning-trace">
+        <div class="empty-state">
+          <div class="empty-icon">🧠</div>
+          <div>Investigation not started</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel 4: Post-mortem -->
+    <div class="panel" id="panel-postmortem">
+      <div class="panel-header">
+        <span class="panel-title">Post-mortem Report</span>
+        <span class="panel-count" id="pm-status">Pending</span>
+      </div>
+      <div class="panel-body" id="postmortem-panel">
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <div>Report generated after investigation</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ── Governance Gate Modal ──────────────────────────────────────────── -->
+<div id="governance-gate">
+  <div class="gate-card">
+    <div class="gate-title">Root Cause Identified</div>
+    <div class="gate-subtitle">
+      PostMortem.ai has completed its investigation. Review the finding before publishing the post-mortem.
+    </div>
+    <div class="gate-root-cause" id="gate-root-cause">—</div>
+    <div class="gate-confidence" id="gate-confidence">—</div>
+    <div class="gate-actions">
+      <button class="btn btn-primary" id="btn-approve">✓ Approve &amp; Generate Report</button>
+      <button class="btn btn-ghost" id="btn-reject-gate">✗ Flag for Review</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────
+let evtSource = null;
+let timerInterval = null;
+let startTime = null;
+let signalCount = 0;
+let traceCount = 0;
+let hypMap = {};           // id → { el, status }
+let governanceData = null;
+let investigationActive = false;
+
+// ── DOM refs ─────────────────────────────────────────────────────────────
+const selectEl      = document.getElementById('incident-select');
+const btnInvestigate= document.getElementById('btn-investigate');
+const btnRandom     = document.getElementById('btn-random');
+const stateBadge    = document.getElementById('state-badge');
+const timerEl       = document.getElementById('timer');
+const signalFeed    = document.getElementById('signal-feed');
+const hypBoard      = document.getElementById('hyp-board');
+const traceEl       = document.getElementById('reasoning-trace');
+const pmPanel       = document.getElementById('postmortem-panel');
+const signalCountEl = document.getElementById('signal-count');
+const hypCountEl    = document.getElementById('hyp-count');
+const traceCountEl  = document.getElementById('trace-count');
+const pmStatusEl    = document.getElementById('pm-status');
+const gateEl        = document.getElementById('governance-gate');
+const gateRootCause = document.getElementById('gate-root-cause');
+const gateConf      = document.getElementById('gate-confidence');
+const btnApprove    = document.getElementById('btn-approve');
+const btnRejectGate = document.getElementById('btn-reject-gate');
+
+// ── Timer ────────────────────────────────────────────────────────────────
+function startTimer() {
+  startTime = Date.now();
+  timerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    const s = String(elapsed % 60).padStart(2, '0');
+    timerEl.textContent = `${m}:${s}`;
+  }, 500);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function setStateBadge(state) {
+  stateBadge.textContent = state;
+  stateBadge.classList.toggle('active', state !== 'IDLE');
+}
+
+function scrollBottom(el) {
+  el.scrollTop = el.scrollHeight;
+}
+
+function formatTimestamp(iso) {
+  try {
+    return new Date(iso).toISOString().slice(11, 19) + 'Z';
+  } catch {
+    return iso;
+  }
+}
+
+function clearPanels() {
+  signalFeed.innerHTML = '<div class="empty-state"><div class="empty-icon">📡</div><div>Collecting signals...</div></div>';
+  hypBoard.innerHTML = '<div class="empty-state"><div class="empty-icon">🔬</div><div>Generating hypotheses...</div></div>';
+  traceEl.innerHTML = '<div class="empty-state"><div class="empty-icon">🧠</div><div>Starting investigation...</div></div>';
+  pmPanel.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div>Report pending...</div></div>';
+  signalCount = 0; traceCount = 0; hypMap = {};
+  signalCountEl.textContent = '0 signals';
+  hypCountEl.textContent = '0 hypotheses';
+  traceCountEl.textContent = '0 steps';
+  pmStatusEl.textContent = 'Pending';
+  timerEl.textContent = '00:00';
+}
+
+// ── Panel 1: Signal Feed ──────────────────────────────────────────────────
+function addSignal(sig) {
+  if (signalCount === 0) signalFeed.innerHTML = '';
+  signalCount++;
+  signalCountEl.textContent = `${signalCount} signal${signalCount !== 1 ? 's' : ''}`;
+
+  const levelClass = `level-${sig.level || 'info'}`;
+  const div = document.createElement('div');
+  div.className = `signal-entry ${levelClass}`;
+  div.innerHTML = `
+    <div class="signal-meta">
+      <span class="signal-source">${escHtml(sig.source)}</span>
+      <span class="signal-time">${formatTimestamp(sig.timestamp)}</span>
+    </div>
+    <div class="signal-msg">${escHtml(sig.message)}</div>
+  `;
+  signalFeed.appendChild(div);
+  scrollBottom(signalFeed);
+}
+
+// ── Panel 2: Hypothesis Board ─────────────────────────────────────────────
+function addHypothesis(id, description, confidence) {
+  if (Object.keys(hypMap).length === 0) hypBoard.innerHTML = '';
+
+  const card = document.createElement('div');
+  card.className = 'hyp-card';
+  card.id = `hyp-${id}`;
+  card.innerHTML = `
+    <div class="hyp-header">
+      <div class="hyp-num">${id}</div>
+      <div class="hyp-desc">${escHtml(description)}</div>
+      <div class="hyp-status-badge badge-pending" id="hyp-badge-${id}">PENDING</div>
+    </div>
+    <div class="hyp-confidence">
+      <div class="conf-bar"><div class="conf-fill" id="hyp-conf-fill-${id}" style="width:${confidence}%"></div></div>
+      <span class="conf-label" id="hyp-conf-label-${id}">${confidence}%</span>
+    </div>
+  `;
+  hypBoard.appendChild(card);
+  hypMap[id] = { el: card };
+  hypCountEl.textContent = `${Object.keys(hypMap).length} hypotheses`;
+  scrollBottom(hypBoard);
+}
+
+function updateHypStatus(id, status, confidence, reason) {
+  const card = document.getElementById(`hyp-${id}`);
+  const badge = document.getElementById(`hyp-badge-${id}`);
+  const fill = document.getElementById(`hyp-conf-fill-${id}`);
+  const confLabel = document.getElementById(`hyp-conf-label-${id}`);
+  if (!card) return;
+
+  card.classList.remove('testing', 'rejected', 'confirmed');
+  badge.classList.remove('badge-pending', 'badge-testing', 'badge-rejected', 'badge-confirmed');
+
+  if (status === 'testing') {
+    card.classList.add('testing');
+    badge.classList.add('badge-testing');
+    badge.textContent = 'TESTING';
+  } else if (status === 'rejected') {
+    card.classList.add('rejected');
+    badge.classList.add('badge-rejected');
+    badge.textContent = '✗ REJECTED';
+    if (fill) fill.style.width = '0%';
+    if (confLabel) confLabel.textContent = '—';
+    if (reason) {
+      const reasonEl = document.createElement('div');
+      reasonEl.className = 'hyp-reason rejection';
+      reasonEl.textContent = reason;
+      card.appendChild(reasonEl);
+    }
+  } else if (status === 'confirmed') {
+    card.classList.add('confirmed');
+    badge.classList.add('badge-confirmed');
+    badge.textContent = `✓ ${confidence}%`;
+    if (fill) fill.style.width = `${confidence}%`;
+    if (confLabel) confLabel.textContent = `${confidence}%`;
+    if (reason) {
+      const reasonEl = document.createElement('div');
+      reasonEl.className = 'hyp-reason confirmation';
+      reasonEl.textContent = reason;
+      card.appendChild(reasonEl);
+    }
+  }
+  scrollBottom(hypBoard);
+}
+
+// ── Panel 3: Reasoning Trace ──────────────────────────────────────────────
+function addTrace(type, label, text, data) {
+  if (traceCount === 0) traceEl.innerHTML = '';
+  traceCount++;
+  traceCountEl.textContent = `${traceCount} step${traceCount !== 1 ? 's' : ''}`;
+
+  const entry = document.createElement('div');
+  entry.className = 'trace-entry';
+
+  let dotClass = type;
+  let dataHtml = '';
+  if (data) {
+    const preview = JSON.stringify(data, null, 2).slice(0, 600);
+    dataHtml = `<div class="trace-data">${escHtml(preview)}</div>`;
+  }
+
+  entry.innerHTML = `
+    <div class="trace-line">
+      <div class="trace-dot ${dotClass}"></div>
+      <div class="trace-connector"></div>
+    </div>
+    <div class="trace-content">
+      <div class="trace-label ${dotClass}">${escHtml(label)}</div>
+      <div class="trace-text">${escHtml(text)}</div>
+      ${dataHtml}
+    </div>
+  `;
+  traceEl.appendChild(entry);
+  scrollBottom(traceEl);
+}
+
+// ── Panel 4: Post-mortem ──────────────────────────────────────────────────
+function renderPostmortem(pm) {
+  pmStatusEl.textContent = `${pm.confidence}% confidence`;
+  const impact = pm.impact || {};
+
+  const rejectedHtml = (pm.rejected || []).map(r =>
+    `<div class="pm-rejected-item">${escHtml(r)}</div>`
+  ).join('');
+
+  const actionsHtml = (pm.action_items || []).map((a, i) =>
+    `<div class="pm-action-item"><span class="action-num">${i + 1}.</span><span>${escHtml(a)}</span></div>`
+  ).join('');
+
+  pmPanel.innerHTML = `
+    <div class="pm-section">
+      <div class="pm-section-title">Root Cause</div>
+      <div class="pm-root-cause">${escHtml(pm.root_cause)}</div>
+      <div class="pm-confidence">
+        <span class="spinner" style="margin-right:4px;border-top-color:var(--green)"></span>
+        Confirmed at ${pm.confidence}% confidence
+      </div>
+    </div>
+
+    <div class="pm-section">
+      <div class="pm-section-title">Impact</div>
+      <div class="pm-impact-grid">
+        <div class="pm-impact-card">
+          <div class="pm-impact-label">Severity</div>
+          <div class="pm-impact-value severity-p1">${escHtml(impact.severity || '—')}</div>
+        </div>
+        <div class="pm-impact-card">
+          <div class="pm-impact-label">Downtime</div>
+          <div class="pm-impact-value">${escHtml(String(impact.duration_minutes || '—'))} min</div>
+        </div>
+        <div class="pm-impact-card">
+          <div class="pm-impact-label">Affected Users</div>
+          <div class="pm-impact-value">${escHtml(impact.affected_users || '—')}</div>
+        </div>
+        <div class="pm-impact-card">
+          <div class="pm-impact-label">Revenue Impact</div>
+          <div class="pm-impact-value">${escHtml(impact.revenue_impact || '—')}</div>
+        </div>
+      </div>
+    </div>
+
+    ${rejectedHtml ? `
+    <div class="pm-section">
+      <div class="pm-section-title">Rejected Hypotheses</div>
+      ${rejectedHtml}
+    </div>` : ''}
+
+    <div class="pm-section">
+      <div class="pm-section-title">Action Items</div>
+      ${actionsHtml}
+    </div>
+
+    <div class="pm-section">
+      <div class="pm-section-title">Detection Gap</div>
+      <div class="pm-detection-gap">${escHtml(pm.detection_gap || '—')}</div>
+    </div>
+  `;
+  scrollBottom(pmPanel);
+}
+
+// ── Event handler ─────────────────────────────────────────────────────────
+function handleEvent(evt) {
+  const e = evt;
+  switch (e.type) {
+    case 'state_change':
+      setStateBadge(e.state);
+      addTrace('state', e.state, e.message);
+      break;
+
+    case 'signals_collected':
+      addTrace('state', 'SIGNALS', `Collected ${e.count} signals from: ${(e.sources || []).join(', ')}`);
+      break;
+
+    case 'signal_entry':
+      addSignal(e.signal);
+      break;
+
+    case 'hypothesis_created':
+      addHypothesis(e.id, e.description, e.confidence);
+      addTrace('state', `HYPOTHESIS ${e.id}`, e.description);
+      break;
+
+    case 'tool_call':
+      // Mark current hypothesis as testing
+      updateTestingHyp(e.tool);
+      addTrace('tool', `TOOL CALL · ${e.tool.toUpperCase()}`, e.message);
+      break;
+
+    case 'tool_result':
+      addTrace('result', `RESULT · ${e.tool.toUpperCase()}`,
+        `Received ${Array.isArray(e.data?.entries || e.data?.datapoints || e.data?.commits || e.data?.messages) ? (e.data.entries||e.data.datapoints||e.data.commits||e.data.messages||[]).length : (e.data?.count ?? 0)} entries`,
+        e.data
+      );
+      break;
+
+    case 'hypothesis_rejected':
+      updateHypStatus(e.id, 'rejected', null, e.reason);
+      addTrace('reject', `✗ REJECTED · H${e.id}`, e.reason);
+      break;
+
+    case 'hypothesis_confirmed':
+      updateHypStatus(e.id, 'confirmed', e.confidence, e.evidence);
+      addTrace('confirm', `✓ CONFIRMED · H${e.id} · ${e.confidence}%`, e.evidence);
+      break;
+
+    case 'confidence_low':
+      addConfidenceWarning(e.confidence, e.message);
+      addTrace('flag', `CONFIDENCE LOW · ${e.confidence}%`, e.message);
+      break;
+
+    case 'governance_gate':
+      governanceData = e;
+      showGovernanceGate(e);
+      break;
+
+    case 'flagged_for_review':
+      setStateBadge('FLAGGED');
+      pmStatusEl.textContent = 'Flagged';
+      addTrace('flag', 'FLAGGED FOR REVIEW',
+        `Confidence ${e.confidence}% — insufficient for autonomous conclusion. Human review required.`);
+      break;
+
+    case 'postmortem':
+      renderPostmortem(e.data);
+      setStateBadge('COMPLETE');
+      addTrace('confirm', 'POST-MORTEM GENERATED', 'Report complete. Investigation closed.');
+      stopTimer();
+      setButtons(false);
+      break;
+
+    case 'error':
+      addTrace('reject', 'ERROR', e.message);
+      setButtons(false);
+      stopTimer();
+      break;
+
+    case 'done':
+      stopTimer();
+      setButtons(false);
+      break;
+  }
+}
+
+// Track which hypothesis is currently being tested
+let currentTestingId = null;
+function updateTestingHyp(toolName) {
+  // Find first hypothesis that hasn't been resolved yet
+  for (const [id, info] of Object.entries(hypMap)) {
+    const card = document.getElementById(`hyp-${id}`);
+    if (card && !card.classList.contains('rejected') && !card.classList.contains('confirmed')) {
+      updateHypStatus(parseInt(id), 'testing', null, null);
+      currentTestingId = id;
+      break;
+    }
+  }
+}
+
+function addConfidenceWarning(confidence, message) {
+  const div = document.createElement('div');
+  div.className = 'conf-warning';
+  div.textContent = message;
+  hypBoard.appendChild(div);
+  scrollBottom(hypBoard);
+}
+
+// ── Governance Gate ───────────────────────────────────────────────────────
+function showGovernanceGate(data) {
+  gateRootCause.textContent = data.root_cause || data.message;
+  gateConf.textContent = `Investigation confidence: ${data.confidence}%`;
+  gateEl.classList.add('visible');
+}
+
+btnApprove.addEventListener('click', () => {
+  gateEl.classList.remove('visible');
+  addTrace('confirm', 'APPROVED', 'Human approved post-mortem generation. Generating report...');
+});
+
+btnRejectGate.addEventListener('click', () => {
+  gateEl.classList.remove('visible');
+  addTrace('flag', 'FLAGGED', 'Human flagged for further review. Investigation paused.');
+  pmStatusEl.textContent = 'Flagged';
+  setStateBadge('FLAGGED');
+});
+
+// ── Investigation runner ──────────────────────────────────────────────────
+function startInvestigation(incidentId) {
+  if (evtSource) { evtSource.close(); evtSource = null; }
+  stopTimer();
+
+  clearPanels();
+  setStateBadge('INGEST');
+  setButtons(true);
+  startTimer();
+  investigationActive = true;
+
+  evtSource = new EventSource(`/investigate?incident_id=${incidentId}`);
+
+  evtSource.onmessage = (msg) => {
+    try {
+      const parsed = JSON.parse(msg.data);
+      handleEvent(parsed);
+      if (parsed.type === 'done') {
+        evtSource.close();
+        evtSource = null;
+        investigationActive = false;
+      }
+    } catch (err) {
+      console.error('Parse error:', err, msg.data);
+    }
+  };
+
+  evtSource.onerror = () => {
+    addTrace('reject', 'CONNECTION ERROR', 'Lost connection to investigation stream.');
+    evtSource.close();
+    evtSource = null;
+    setButtons(false);
+    stopTimer();
+    investigationActive = false;
+  };
+}
+
+function setButtons(investigating) {
+  btnInvestigate.disabled = investigating;
+  btnRandom.disabled = investigating;
+  btnInvestigate.textContent = investigating
+    ? '⧖ Investigating...'
+    : 'Investigate';
+}
+
+// ── Button handlers ───────────────────────────────────────────────────────
+btnInvestigate.addEventListener('click', () => {
+  const id = selectEl.value;
+  if (!id) { alert('Please select an incident first.'); return; }
+  startInvestigation(id);
+});
+
+btnRandom.addEventListener('click', async () => {
+  try {
+    const resp = await fetch('/incidents/random');
+    const data = await resp.json();
+    selectEl.value = data.id;
+    startInvestigation(data.id);
+  } catch (err) {
+    console.error('Failed to load random incident:', err);
+  }
+});
+
+// ── Utility ───────────────────────────────────────────────────────────────
+function escHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+</script>
+</body>
+</html>

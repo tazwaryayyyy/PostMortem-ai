@@ -16,17 +16,10 @@ import time
 from enum import Enum
 from typing import AsyncGenerator
 
+import httpx
 from groq import Groq
 
-from mock_apis import (
-    INCIDENTS,
-    flag_for_review_impl,
-    query_github_impl,
-    query_logs_impl,
-    query_metrics_impl,
-    query_pagerduty_impl,
-    query_slack_impl,
-)
+from mock_apis import INCIDENTS, flag_for_review_impl, query_pagerduty_impl
 from prompts import SYSTEM_PROMPT  # noqa: F401
 from vision_agent import get_vision_agent
 
@@ -55,7 +48,10 @@ _MODEL_FAST = "llama-3.1-8b-instant"
 _MODEL_REPORT = "compound-beta"
 _MODEL_CRITIC = "qwen-qwen3-32b"
 
-# Endpoint map for tool_call_dispatched SSE event
+# Base URL for the live tool API endpoints (self-referential HTTP calls)
+_TOOL_BASE = os.getenv("TOOL_API_BASE_URL", "http://localhost:8000")
+
+# Endpoint map for tool_call_dispatched SSE event and live HTTP dispatch
 _TOOL_ENDPOINTS: dict[str, str] = {
     "query_logs": "/tools/logs",
     "query_metrics": "/tools/metrics",
@@ -120,12 +116,14 @@ class AgentState(str, Enum):
 # ---------------------------------------------------------------------------
 # Tool registry
 # ---------------------------------------------------------------------------
+# Tool registry — used for hypothesis prompt building.
+# Dispatch is handled via live HTTP POST in _execute_tool_action.
 TOOL_REGISTRY = {
-    "query_logs": query_logs_impl,
-    "query_slack": query_slack_impl,
+    "query_logs": "GET /tools/logs",
+    "query_slack": "GET /tools/slack",
     "query_pagerduty": query_pagerduty_impl,
-    "query_github": query_github_impl,
-    "query_metrics": query_metrics_impl,
+    "query_github": "GET /tools/github",
+    "query_metrics": "GET /tools/metrics",
     "flag_for_review": flag_for_review_impl,
 }
 
@@ -484,7 +482,7 @@ class PostMortemCoordinator:
                     tool=tool_name,
                     endpoint=endpoint,
                     params={"action": tool_action,
-                        "incident_id": self.incident_id},
+                            "incident_id": self.incident_id},
                     agent="EvidenceAgent",
                 )
 
@@ -707,7 +705,7 @@ class PostMortemCoordinator:
         3-second hard timeout; falls back to a simple reasoning card on any failure.
         """
         available = ["query_logs", "query_metrics",
-            "query_github", "query_slack"]
+                     "query_github", "query_slack"]
         tools_rejected = [t for t in available if t != tool_selected]
 
         _SYSTEM = (
@@ -799,33 +797,61 @@ class PostMortemCoordinator:
         }
 
     async def _execute_tool_action(self, action_str: str) -> dict:
-        """Parse a tool-action string and dispatch to the appropriate async impl function."""
+        """
+        Parse a tool-action string and dispatch to the live /tools/* HTTP endpoints.
+        Four tools (logs, metrics, github, slack) make real HTTP POST calls so that
+        network-observable tool orchestration is visible in server access logs and
+        DevTools. PagerDuty and flag_for_review remain in-process (no HTTP endpoint).
+        """
         start = self.incident["start_time"]
         end = self.incident["end_time"]
         iid = self.incident_id
         action_str = action_str.strip()
 
+        async def _post(path: str, payload: dict) -> dict:
+            """POST to a live /tools/* endpoint with a 5 s timeout; fall back to {} on error."""
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    r = await client.post(f"{_TOOL_BASE}{path}", json=payload)
+                    r.raise_for_status()
+                    return r.json()
+            except Exception:
+                return {"error": f"tool endpoint {path} unavailable", "count": 0}
+
         if action_str.startswith("query_metrics("):
             inner = action_str[len("query_metrics("):-1]
             parts = [p.strip() for p in inner.split(",")]
-            service = parts[0] if len(parts) > 0 else "api"
+            service = parts[0] if parts else "api"
             metric = parts[1] if len(parts) > 1 else "cpu_percent"
-            return await query_metrics_impl(service=service, metric=metric, start_time=start, end_time=end, incident_id=iid)
+            return await _post("/tools/metrics", {
+                "incident_id": iid, "service": service,
+                "metric_name": metric, "start_time": start, "end_time": end,
+            })
 
         elif action_str.startswith("query_logs("):
             inner = action_str[len("query_logs("):-1]
             parts = [p.strip() for p in inner.split(",")]
-            service = parts[0] if len(parts) > 0 else "api"
+            service = parts[0] if parts else "api"
             level = parts[1] if len(parts) > 1 else "error"
-            return await query_logs_impl(service=service, level=level, start_time=start, end_time=end, incident_id=iid)
+            return await _post("/tools/logs", {
+                "incident_id": iid, "service": service,
+                "level": level, "start_time": start, "end_time": end,
+            })
 
         elif action_str.startswith("query_github("):
-            inner = action_str[len("query_github("):-1].strip()
-            return await query_github_impl(repo=inner, start_time=start, end_time=end, incident_id=iid)
+            repo = action_str[len("query_github("):-1].strip()
+            return await _post("/tools/github", {
+                "incident_id": iid, "repo": repo,
+                "start_time": start, "end_time": end,
+            })
 
         elif action_str.startswith("query_slack("):
-            inner = action_str[len("query_slack("):-1].strip() or "#incidents"
-            return await query_slack_impl(channel=inner, start_time=start, end_time=end, incident_id=iid)
+            channel = action_str[len(
+                "query_slack("):-1].strip() or "#incidents"
+            return await _post("/tools/slack", {
+                "incident_id": iid, "channel": channel,
+                "start_time": start, "end_time": end,
+            })
 
         elif action_str.startswith("query_pagerduty("):
             return await query_pagerduty_impl(start_time=start, end_time=end, incident_id=iid)

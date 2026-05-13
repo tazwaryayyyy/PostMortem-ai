@@ -1557,17 +1557,26 @@
 
     /* ── Judge Mode button ── */
     @keyframes judge-pulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(255,211,42,0.5); }
-      50% { box-shadow: 0 0 0 6px rgba(255,211,42,0); }
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 211, 42, 0.5);
+      }
+
+      50% {
+        box-shadow: 0 0 0 6px rgba(255, 211, 42, 0);
+      }
     }
+
     .btn-judge {
-      background: rgba(255,211,42,0.12);
+      background: rgba(255, 211, 42, 0.12);
       color: var(--yellow);
       border: 1px solid var(--yellow-dim);
       animation: judge-pulse 2s infinite;
     }
+
     .btn-judge:hover {
-      background: rgba(255,211,42,0.22);
+      background: rgba(255, 211, 42, 0.22);
     }
 
     /* ── Judge banner ── */
@@ -1576,14 +1585,18 @@
       align-items: center;
       justify-content: center;
       height: 28px;
-      background: rgba(255,211,42,0.1);
+      background: rgba(255, 211, 42, 0.1);
       border-bottom: 1px solid var(--yellow-dim);
       font-size: 10px;
       color: var(--yellow);
       letter-spacing: 0.4px;
       font-weight: 600;
     }
-    .judge-banner.visible { display: flex; animation: slide-in 0.2s ease; }
+
+    .judge-banner.visible {
+      display: flex;
+      animation: slide-in 0.2s ease;
+    }
 
     /* ── Business value stats strip ── */
     .stats-strip {
@@ -1594,6 +1607,7 @@
       background: var(--bg-panel);
       overflow: hidden;
     }
+
     .stat-tile {
       display: flex;
       flex-direction: column;
@@ -1601,7 +1615,11 @@
       padding: 0 16px;
       border-right: 1px solid var(--border);
     }
-    .stat-tile:last-child { border-right: none; }
+
+    .stat-tile:last-child {
+      border-right: none;
+    }
+
     .stat-value {
       font-size: 14px;
       font-weight: 700;
@@ -1609,6 +1627,7 @@
       font-family: var(--font-ui);
       line-height: 1;
     }
+
     .stat-label {
       font-size: 9px;
       text-transform: uppercase;
@@ -1627,53 +1646,80 @@
       line-height: 1.5;
       animation: slide-in 0.15s ease;
     }
+
     .trace-card-reasoning {
       border-left: 3px solid #4285f4;
     }
+
     .trace-card-dispatch {
       border-left: 3px solid var(--yellow);
     }
-    .trace-card-debate {
-      border-left: 3px solid var(--yellow);
+
+    @keyframes debate-pulse {
+
+      0%,
+      100% {
+        border-left-color: #f5a623;
+        box-shadow: 0 0 0 0 rgba(245, 166, 35, 0.4);
+      }
+
+      50% {
+        border-left-color: #ffd32a;
+        box-shadow: 0 0 8px 2px rgba(245, 166, 35, 0.2);
+      }
     }
+
+    .trace-card-debate {
+      border-left: 3px solid #f5a623;
+      animation: debate-pulse 1.8s ease-in-out 3;
+    }
+
     .trace-card-rejection {
       border-left: 3px solid var(--red);
     }
+
     .trace-card-title {
       font-weight: 600;
       color: var(--text);
       margin-bottom: 4px;
     }
+
     .trace-card-body {
       color: var(--text-dim);
     }
+
     .trace-card-chips {
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
       margin-top: 5px;
     }
+
     .trace-chip {
       padding: 1px 6px;
       border-radius: 3px;
       font-size: 9px;
       font-weight: 600;
     }
+
     .trace-chip-selected {
-      background: rgba(0,255,136,0.12);
+      background: rgba(0, 255, 136, 0.12);
       color: var(--green);
-      border: 1px solid rgba(0,255,136,0.25);
+      border: 1px solid rgba(0, 255, 136, 0.25);
     }
+
     .trace-chip-rejected {
-      background: rgba(255,71,87,0.1);
+      background: rgba(255, 71, 87, 0.1);
       color: var(--red);
-      border: 1px solid rgba(255,71,87,0.2);
+      border: 1px solid rgba(255, 71, 87, 0.2);
     }
+
     .trace-chip-endpoint {
-      background: rgba(255,211,42,0.1);
+      background: rgba(255, 211, 42, 0.1);
       color: var(--yellow);
-      border: 1px solid rgba(255,211,42,0.2);
+      border: 1px solid rgba(255, 211, 42, 0.2);
     }
+
     .trace-latency {
       font-size: 9px;
       color: var(--text-dim);
@@ -1722,7 +1768,8 @@
       required</div>
 
     <!-- Judge Mode banner -->
-    <div class="judge-banner" id="judge-banner">⚡ Judge Mode Active — Guided walkthrough — watch the Reasoning Trace panel →</div>
+    <div class="judge-banner" id="judge-banner">⚡ Judge Mode Active — Guided walkthrough — watch the Reasoning Trace
+      panel →</div>
 
     <!-- ── Model stack strip ── -->
     <div class="model-strip">
@@ -1741,9 +1788,10 @@
         <div class="stat-value" id="stat-incidents">—</div>
         <div class="stat-label">Incidents Analyzed</div>
       </div>
-      <div class="stat-tile">
+      <div class="stat-tile" title="vs. 4.5 hr industry avg MTTR (Atlassian 2024 State of Incidents report)">
         <div class="stat-value" id="stat-mttr">—</div>
-        <div class="stat-label">Avg MTTR Saved (min)</div>
+        <div class="stat-label">Avg MTTR Saved <span style="color:var(--text-dim);font-weight:400">(vs 4.5 hr
+            avg)</span></div>
       </div>
       <div class="stat-tile">
         <div class="stat-value" id="stat-impact">—</div>
@@ -2620,7 +2668,7 @@
           const card = document.createElement('div');
           card.className = 'trace-card trace-card-dispatch';
           const params = e.params || {};
-          const paramsStr = Object.entries(params).map(([k,v]) => `${k}: ${JSON.stringify(v)}`).join(' | ');
+          const paramsStr = Object.entries(params).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(' | ');
           card.innerHTML = `
             <div class="trace-card-title">🔧 ${escHtml(e.agent || 'EvidenceAgent')} called ${escHtml(e.tool || '')}</div>
             <div class="trace-card-chips">
@@ -2660,7 +2708,7 @@
           const rcard = document.createElement('div');
           rcard.className = 'trace-card';
           const count = countEntries(e.data);
-          rcard.innerHTML = `<div class="trace-card-title" style="color:var(--green)">✓ RESULT · ${escHtml((e.tool||'').toUpperCase())}</div>
+          rcard.innerHTML = `<div class="trace-card-title" style="color:var(--green)">✓ RESULT · ${escHtml((e.tool || '').toUpperCase())}</div>
             <div class="trace-card-body">Received ${count} entr${count !== 1 ? 'ies' : 'y'}${latency ? ` · ${latency}` : ''}</div>`;
           traceEl.appendChild(rcard);
           traceCount++;
@@ -2893,9 +2941,11 @@
 
       // Step 2: briefly show a live tool call in the trace to demonstrate tools
       try {
-        const r = await fetch('/tools/logs', { method: 'POST',
+        const r = await fetch('/tools/logs', {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ incident_id: 'incident_e', service: 'payment-service', limit: 5 }) });
+          body: JSON.stringify({ incident_id: 'incident_e', service: 'payment-service', limit: 5 })
+        });
         if (r.ok) {
           const tcard = document.createElement('div');
           tcard.className = 'trace-card trace-card-dispatch';
@@ -2905,7 +2955,7 @@
           traceEl.appendChild(tcard);
           scrollBottom(traceEl);
         }
-      } catch (_) {}
+      } catch (_) { }
 
       // Step 3: after 800ms simulate the webhook trigger
       await new Promise(r => setTimeout(r, 800));

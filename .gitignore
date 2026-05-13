@@ -153,3 +153,8 @@ cython_debug/
 
 # VS Code
 .vscode/
+
+# PostMortem.ai runtime artifacts
+investigations.db
+incidents/generated_*.json
+

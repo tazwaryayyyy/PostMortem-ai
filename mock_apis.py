@@ -5,12 +5,18 @@ INCIDENTS: dict = {}
 
 
 def load_incidents():
+    """Load all incident JSON files from the incidents/ directory."""
     global INCIDENTS
-    for name in ["incident_a", "incident_b", "incident_c"]:
-        path = Path(f"incidents/{name}.json")
-        if path.exists():
-            with open(path) as f:
+    incidents_dir = Path("incidents")
+    if not incidents_dir.exists():
+        return
+    for path in incidents_dir.glob("*.json"):
+        name = path.stem  # filename without extension
+        try:
+            with open(path, encoding="utf-8") as f:
                 INCIDENTS[name] = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            pass  # Skip malformed files silently
 
 
 def _get_incident(incident_id: str) -> dict:
@@ -96,7 +102,8 @@ def query_metrics_impl(
     incident_id: str = "incident_a",
 ) -> dict:
     incident = _get_incident(incident_id)
-    metrics_data = incident.get("signals", {}).get("metrics", {}).get(service, {})
+    metrics_data = incident.get("signals", {}).get(
+        "metrics", {}).get(service, {})
     time_series = metrics_data.get(metric, [])
     return {
         "query": f"metrics.{service}.{metric}",

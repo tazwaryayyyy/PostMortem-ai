@@ -1,0 +1,243 @@
+{
+    "incident_id": "incident_e",
+    "title": "Silent Payment Failure Cascade — Stripe TLS Cert Rotation",
+    "start_time": "2024-04-08T09:15:00Z",
+    "end_time": "2024-04-08T11:22:00Z",
+    "correct_root_cause": "Stripe API rotated their TLS certificate chain at 09:12 UTC. Our Python Stripe SDK (v4.2.0) uses a bundled CA certificate store that did not include the new intermediate CA. The SDK connection pool (size: 10) exhausted itself retrying failed handshakes. Each failed connection held a pool slot for 30s before timeout, leaving new payment requests queued indefinitely and ultimately failing silently with a generic 'connection pool exhausted' exception that was swallowed by a bare except clause.",
+    "detection_gap": "The 0.3% initial failure rate was below all automated alert thresholds (minimum 1% for P2, 5% for P1). The failure was first detected by a customer complaint in #support-escalations at 09:58 — 43 minutes after onset. No synthetic canary tests cover the payment checkout flow end-to-end. The bare except in payment_processor.py masked the error as a generic internal server error.",
+    "contributing_factors": [
+        "Stripe SDK bundled CA store not automatically updated — pinned to SDK version",
+        "Bare except clause in payment_processor.py swallowed connection pool errors",
+        "No end-to-end synthetic monitoring for payment checkout flow",
+        "Alert threshold too high: 1% failure rate floor missed 0.3% initial signal",
+        "Connection pool size (10) too small for retry-storm under certificate failures"
+    ],
+    "impact": {
+        "duration_minutes": 127,
+        "affected_users": "~8,400 checkout attempts",
+        "revenue_impact": "$312,000",
+        "severity": "P1"
+    },
+    "signals": {
+        "pagerduty": [
+            {
+                "timestamp": "2024-04-08T10:31:00Z",
+                "title": "Payment Error Rate > 5% — Escalating",
+                "severity": "critical",
+                "service": "payment"
+            }
+        ],
+        "slack": [
+            {
+                "timestamp": "2024-04-08T09:58:00Z",
+                "channel": "#support-escalations",
+                "user": "@support-lead",
+                "message": "Getting DMs from 3 enterprise customers saying checkout is broken. No error shown to user, cart just hangs."
+            },
+            {
+                "timestamp": "2024-04-08T10:04:00Z",
+                "channel": "#incidents",
+                "user": "@backend-oncall",
+                "message": "Checking payment service. Error rate is 1.2% — just crossed our alert threshold. Investigating."
+            },
+            {
+                "timestamp": "2024-04-08T10:15:00Z",
+                "channel": "#incidents",
+                "user": "@sre-lead",
+                "message": "Database looks healthy, no slow queries. Payment service CPU/memory normal. This is weird."
+            },
+            {
+                "timestamp": "2024-04-08T10:28:00Z",
+                "channel": "#incidents",
+                "user": "@backend-eng",
+                "message": "Found it — connection pool exhausted errors in the payment logs. But why? We haven't changed anything."
+            },
+            {
+                "timestamp": "2024-04-08T10:45:00Z",
+                "channel": "#incidents",
+                "user": "@platform-lead",
+                "message": "Stripe status page shows no incidents. But I can reproduce the TLS handshake failure from our bastion host with openssl s_client against api.stripe.com"
+            },
+            {
+                "timestamp": "2024-04-08T11:08:00Z",
+                "channel": "#incidents",
+                "user": "@backend-lead",
+                "message": "pip install stripe --upgrade fixed it. The SDK was bundling an old CA cert. Deploying now."
+            }
+        ],
+        "logs": [
+            {
+                "timestamp": "2024-04-08T09:16:00Z",
+                "service": "payment",
+                "level": "error",
+                "message": "stripe.error.APIConnectionError: HTTPSConnectionPool(host='api.stripe.com', port=443): Max retries exceeded with url: /v1/payment_intents"
+            },
+            {
+                "timestamp": "2024-04-08T09:17:00Z",
+                "service": "payment",
+                "level": "error",
+                "message": "ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1123)"
+            },
+            {
+                "timestamp": "2024-04-08T09:18:00Z",
+                "service": "payment",
+                "level": "error",
+                "message": "urllib3.exceptions.MaxRetryError: HTTPSConnectionPool exhausted — pool_size=10, queue_timeout=30s"
+            },
+            {
+                "timestamp": "2024-04-08T09:45:00Z",
+                "service": "payment",
+                "level": "warn",
+                "message": "Connection pool queue depth: 847 pending requests. Pool size: 10/10 occupied."
+            },
+            {
+                "timestamp": "2024-04-08T10:00:00Z",
+                "service": "payment",
+                "level": "error",
+                "message": "urllib3.exceptions.MaxRetryError: HTTPSConnectionPool exhausted — pool_size=10, queue_timeout=30s"
+            },
+            {
+                "timestamp": "2024-04-08T10:00:00Z",
+                "service": "payment",
+                "level": "error",
+                "message": "stripe.error.APIConnectionError: HTTPSConnectionPool(host='api.stripe.com', port=443): Max retries exceeded"
+            }
+        ],
+        "github": [
+            {
+                "timestamp": "2024-04-07T14:00:00Z",
+                "repo": "payment-service",
+                "author": "dependabot",
+                "message": "chore: bump stripe from 4.2.0 to 7.1.0 [NOT MERGED]",
+                "sha": "pr-4421-not-merged"
+            },
+            {
+                "timestamp": "2024-04-06T10:33:00Z",
+                "repo": "payment-service",
+                "author": "jsmith",
+                "message": "feat: add idempotency keys to payment retry logic",
+                "sha": "c9f1e44"
+            }
+        ],
+        "metrics": {
+            "payment": {
+                "error_rate_pct": [
+                    {
+                        "timestamp": "2024-04-08T09:15:00Z",
+                        "value": 0.3
+                    },
+                    {
+                        "timestamp": "2024-04-08T09:30:00Z",
+                        "value": 0.8
+                    },
+                    {
+                        "timestamp": "2024-04-08T09:45:00Z",
+                        "value": 1.9
+                    },
+                    {
+                        "timestamp": "2024-04-08T10:00:00Z",
+                        "value": 3.7
+                    },
+                    {
+                        "timestamp": "2024-04-08T10:15:00Z",
+                        "value": 5.8
+                    },
+                    {
+                        "timestamp": "2024-04-08T10:30:00Z",
+                        "value": 7.9
+                    },
+                    {
+                        "timestamp": "2024-04-08T11:00:00Z",
+                        "value": 8.2
+                    },
+                    {
+                        "timestamp": "2024-04-08T11:22:00Z",
+                        "value": 0.1
+                    }
+                ],
+                "connection_pool_active": [
+                    {
+                        "timestamp": "2024-04-08T09:00:00Z",
+                        "value": 3
+                    },
+                    {
+                        "timestamp": "2024-04-08T09:15:00Z",
+                        "value": 10
+                    },
+                    {
+                        "timestamp": "2024-04-08T09:30:00Z",
+                        "value": 10
+                    },
+                    {
+                        "timestamp": "2024-04-08T10:00:00Z",
+                        "value": 10
+                    },
+                    {
+                        "timestamp": "2024-04-08T11:22:00Z",
+                        "value": 2
+                    }
+                ],
+                "latency_p99_ms": [
+                    {
+                        "timestamp": "2024-04-08T09:00:00Z",
+                        "value": 280
+                    },
+                    {
+                        "timestamp": "2024-04-08T09:15:00Z",
+                        "value": 29800
+                    },
+                    {
+                        "timestamp": "2024-04-08T09:30:00Z",
+                        "value": 30000
+                    },
+                    {
+                        "timestamp": "2024-04-08T10:00:00Z",
+                        "value": 30000
+                    },
+                    {
+                        "timestamp": "2024-04-08T11:22:00Z",
+                        "value": 310
+                    }
+                ]
+            }
+        }
+    },
+    "expected_hypothesis_sequence": [
+        {
+            "hypothesis": "Internal database slowdown causing payment timeouts and cascade failures",
+            "should_reject": true,
+            "data_to_query": [
+                "query_metrics(payment, latency_p99_ms)",
+                "query_logs(payment, error)"
+            ],
+            "rejection_evidence": "Database metrics show zero slow queries. All payment errors contain 'api.stripe.com' in the stack trace — the failure is at the external Stripe API call, not the internal DB. Latency spike to 30s matches the connection pool timeout (30s), not DB response times."
+        },
+        {
+            "hypothesis": "Recent code deployment to payment-service introduced a regression",
+            "should_reject": true,
+            "data_to_query": [
+                "query_github(payment-service)",
+                "query_pagerduty()"
+            ],
+            "rejection_evidence": "Last merged deployment was April 6 (idempotency key feature). Failures began April 8 at 09:15 — 2 days after deployment. The Dependabot PR to upgrade Stripe SDK was NOT merged. Deployment timeline does not align with failure onset."
+        },
+        {
+            "hypothesis": "Stripe API TLS certificate rotation caused SDK connection pool exhaustion via SSL handshake failures",
+            "should_reject": false,
+            "data_to_query": [
+                "query_logs(payment, error)",
+                "query_metrics(payment, connection_pool_active)"
+            ],
+            "confirming_evidence": "Logs show ssl.SSLCertVerificationError: unable to get local issuer certificate starting at 09:16 — 1 minute after incident onset. Connection pool immediately saturated to 10/10 and stayed there for 2 hours. Each failed TLS handshake held a pool slot for 30s. The Dependabot PR to upgrade Stripe SDK (which bundles updated CA certs) was open but unmerged. Upgrading stripe package resolved the TLS verification issue at 11:22."
+        }
+    ],
+    "action_items": [
+        "Upgrade stripe SDK to 7.x and add automated dependency update policy for security-sensitive packages",
+        "Remove bare except clauses in payment_processor.py — catch specific exception types and log with full stack trace",
+        "Add end-to-end synthetic canary: POST /checkout every 60s with a test card, alert on failure",
+        "Lower payment error rate alert threshold: P3 at 0.1%, P2 at 0.5%, P1 at 2%",
+        "Increase Stripe connection pool size to 50 and add pool utilization metric to dashboard",
+        "Add openssl s_client check to pre-deploy smoke test for all third-party TLS dependencies",
+        "Subscribe to Stripe changelog RSS for certificate rotation announcements"
+    ]
+}

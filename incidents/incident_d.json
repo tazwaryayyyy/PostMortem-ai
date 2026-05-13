@@ -1,0 +1,241 @@
+{
+    "incident_id": "incident_d",
+    "title": "Memory Leak in ML Inference Service — Gradual OOM Cascade",
+    "start_time": "2024-03-12T08:00:00Z",
+    "end_time": "2024-03-12T14:23:00Z",
+    "correct_root_cause": "Tensor accumulation in batch processor: PyTorch tensors created during inference were never explicitly freed. Each batch left ~180MB resident on GPU VRAM. Over 6 hours across 3 replicas, VRAM exhausted (24GB) triggering cascading CUDA OOM errors and K8s pod evictions.",
+    "detection_gap": "GPU memory utilization was not in the standard SLO dashboard. The alert threshold was set on CPU memory (not GPU VRAM), so the team was not paged until pods began crashing. The gradual 6-hour ramp-up bypassed all existing rate-of-change alerts.",
+    "contributing_factors": [
+        "No VRAM utilization metric exported to Prometheus",
+        "Batch processor code review did not include memory profiling",
+        "K8s resource limits set on CPU/RAM, not GPU memory",
+        "Gradual leak bypassed spike-detection alert rules"
+    ],
+    "impact": {
+        "duration_minutes": 383,
+        "affected_users": "~4,200 API consumers",
+        "revenue_impact": "$156,000",
+        "severity": "P1"
+    },
+    "signals": {
+        "pagerduty": [
+            {
+                "timestamp": "2024-03-12T13:47:00Z",
+                "title": "ml-inference Pod CrashLoopBackOff — 3/3 replicas",
+                "severity": "critical",
+                "service": "ml-inference"
+            },
+            {
+                "timestamp": "2024-03-12T13:52:00Z",
+                "title": "API Error Rate > 15% — P99 Latency 8200ms",
+                "severity": "critical",
+                "service": "api-gateway"
+            }
+        ],
+        "slack": [
+            {
+                "timestamp": "2024-03-12T13:48:00Z",
+                "channel": "#incidents",
+                "user": "@ml-oncall",
+                "message": "All 3 inference pods are crash-looping. Restarting now."
+            },
+            {
+                "timestamp": "2024-03-12T13:51:00Z",
+                "channel": "#incidents",
+                "user": "@sre-lead",
+                "message": "Pods restart but die again within 2 minutes. Traffic is 15% below yesterday, this isn't a traffic spike."
+            },
+            {
+                "timestamp": "2024-03-12T13:55:00Z",
+                "channel": "#ml-team",
+                "user": "@ml-eng",
+                "message": "No model weight deployment in the last 72 hours. Last deploy was March 9th and it was a minor config update."
+            },
+            {
+                "timestamp": "2024-03-12T14:02:00Z",
+                "channel": "#incidents",
+                "user": "@platform-eng",
+                "message": "Checked K8s resource usage — CPU at 42%, RAM at 67%. Both look fine. But I don't see GPU VRAM in our dashboards..."
+            }
+        ],
+        "logs": [
+            {
+                "timestamp": "2024-03-12T08:14:00Z",
+                "service": "ml-inference",
+                "level": "warn",
+                "message": "CUDA memory fragmentation detected: 2.1GB allocated, 1.8GB reserved, 0.3GB uncached"
+            },
+            {
+                "timestamp": "2024-03-12T10:31:00Z",
+                "service": "ml-inference",
+                "level": "warn",
+                "message": "CUDA memory fragmentation detected: 8.7GB allocated, 8.4GB reserved, 0.3GB uncached"
+            },
+            {
+                "timestamp": "2024-03-12T12:45:00Z",
+                "service": "ml-inference",
+                "level": "warn",
+                "message": "CUDA memory fragmentation detected: 16.2GB allocated, 15.9GB reserved, 0.3GB uncached"
+            },
+            {
+                "timestamp": "2024-03-12T13:44:00Z",
+                "service": "ml-inference",
+                "level": "error",
+                "message": "CUDA out of memory. Tried to allocate 2.50 GiB (GPU 0; 24.00 GiB total capacity; 22.97 GiB already allocated)"
+            },
+            {
+                "timestamp": "2024-03-12T13:44:00Z",
+                "service": "ml-inference",
+                "level": "error",
+                "message": "RuntimeError: CUDA out of memory. Tried to allocate 2.50 GiB"
+            },
+            {
+                "timestamp": "2024-03-12T13:45:00Z",
+                "service": "ml-inference",
+                "level": "error",
+                "message": "RuntimeError: CUDA out of memory. Tried to allocate 2.50 GiB"
+            },
+            {
+                "timestamp": "2024-03-12T13:46:00Z",
+                "service": "k8s-node",
+                "level": "error",
+                "message": "Pod ml-inference-7d4f9b-xk2p9 evicted: The node was low on resource: memory. Threshold: 100%, available: 0"
+            },
+            {
+                "timestamp": "2024-03-12T13:47:00Z",
+                "service": "k8s-node",
+                "level": "error",
+                "message": "Pod ml-inference-7d4f9b-m8r3t evicted: The node was low on resource: memory."
+            },
+            {
+                "timestamp": "2024-03-12T13:47:00Z",
+                "service": "k8s-node",
+                "level": "error",
+                "message": "Pod ml-inference-7d4f9b-p1n6w evicted: The node was low on resource: memory."
+            }
+        ],
+        "github": [
+            {
+                "timestamp": "2024-03-09T16:22:00Z",
+                "repo": "ml-inference",
+                "author": "jlee",
+                "message": "chore: update inference config batch_size 16→32 for throughput improvement",
+                "sha": "a4f2c81"
+            },
+            {
+                "timestamp": "2024-03-11T09:11:00Z",
+                "repo": "ml-inference",
+                "author": "mchen",
+                "message": "fix: increase request timeout for large payloads",
+                "sha": "b8e3d92"
+            }
+        ],
+        "metrics": {
+            "ml-inference": {
+                "gpu_vram_used_gb": [
+                    {
+                        "timestamp": "2024-03-12T08:00:00Z",
+                        "value": 1.8
+                    },
+                    {
+                        "timestamp": "2024-03-12T09:00:00Z",
+                        "value": 4.2
+                    },
+                    {
+                        "timestamp": "2024-03-12T10:00:00Z",
+                        "value": 7.9
+                    },
+                    {
+                        "timestamp": "2024-03-12T11:00:00Z",
+                        "value": 12.1
+                    },
+                    {
+                        "timestamp": "2024-03-12T12:00:00Z",
+                        "value": 16.7
+                    },
+                    {
+                        "timestamp": "2024-03-12T13:00:00Z",
+                        "value": 21.3
+                    },
+                    {
+                        "timestamp": "2024-03-12T13:44:00Z",
+                        "value": 24.0
+                    }
+                ],
+                "requests_per_second": [
+                    {
+                        "timestamp": "2024-03-12T08:00:00Z",
+                        "value": 142
+                    },
+                    {
+                        "timestamp": "2024-03-12T10:00:00Z",
+                        "value": 138
+                    },
+                    {
+                        "timestamp": "2024-03-12T12:00:00Z",
+                        "value": 145
+                    },
+                    {
+                        "timestamp": "2024-03-12T13:00:00Z",
+                        "value": 141
+                    },
+                    {
+                        "timestamp": "2024-03-12T13:44:00Z",
+                        "value": 0
+                    }
+                ],
+                "cpu_percent": [
+                    {
+                        "timestamp": "2024-03-12T08:00:00Z",
+                        "value": 38
+                    },
+                    {
+                        "timestamp": "2024-03-12T12:00:00Z",
+                        "value": 41
+                    },
+                    {
+                        "timestamp": "2024-03-12T13:44:00Z",
+                        "value": 44
+                    }
+                ]
+            }
+        }
+    },
+    "expected_hypothesis_sequence": [
+        {
+            "hypothesis": "Traffic spike overloaded inference service — too many concurrent requests",
+            "should_reject": true,
+            "data_to_query": [
+                "query_metrics(ml-inference, requests_per_second)",
+                "query_pagerduty()"
+            ],
+            "rejection_evidence": "Requests per second at crash time: 141 RPS — 2% BELOW the 7-day average of 144 RPS. Traffic is normal. Pod crashes are not traffic-induced."
+        },
+        {
+            "hypothesis": "Bad model weights deployed in the last 24 hours caused inference failures",
+            "should_reject": true,
+            "data_to_query": [
+                "query_github(ml-inference)",
+                "query_logs(ml-inference, error)"
+            ],
+            "rejection_evidence": "Last model weight deployment was March 9 (72 hours ago) — a minor config update. Errors began on March 12 at 13:44, 72+ hours after any deployment. No correlation."
+        },
+        {
+            "hypothesis": "Tensor accumulation in batch processor not releasing GPU VRAM — gradual memory leak causing OOM",
+            "should_reject": false,
+            "data_to_query": [
+                "query_metrics(ml-inference, gpu_vram_used_gb)",
+                "query_logs(ml-inference, warn)"
+            ],
+            "confirming_evidence": "GPU VRAM grew linearly from 1.8GB at 08:00 to 24.0GB (full capacity) at 13:44 — a 6-hour ramp. CUDA fragmentation warnings logged every 2 hours, escalating. Each restart causes pod eviction within 2 minutes as VRAM fills again immediately. Batch size was doubled (16→32) on March 9th, doubling per-batch tensor accumulation rate."
+        }
+    ],
+    "action_items": [
+        "Add explicit torch.cuda.empty_cache() and del tensor calls after each batch inference",
+        "Export GPU VRAM utilization to Prometheus and add alert: VRAM > 85% for 15 minutes",
+        "Add memory profiling to CI pipeline for ML service changes using torch.profiler",
+        "Set K8s resource limits on GPU (nvidia.com/gpu: 1) and add VRAM-based HPA",
+        "Add rate-of-change alert: VRAM growth > 200MB/hour triggers P2 investigation",
+        "Review batch_size change on March 9 — revert to 16 or add corresponding memory guards"
+    ]
+}

@@ -1,40 +1,48 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PostMortem.ai — Incident Investigation</title>
+  <title>PostMortem.ai — Autonomous Root Cause Analysis</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;700;800&display=swap"
+    rel="stylesheet" />
   <style>
-    /* ── Reset & Variables ───────────────────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:        #080b10;
-      --bg-panel:  #0d1117;
-      --bg-card:   #111720;
-      --border:    #1e2a38;
-      --border-hi: #2a3f58;
-      --text:      #c8d6e5;
-      --text-dim:  #5a7490;
-      --text-muted:#344657;
-      --green:     #00e5a0;
-      --green-dim: #00a36e;
-      --red:       #ff4757;
-      --red-dim:   #8b1c2e;
-      --yellow:    #ffd32a;
-      --yellow-dim:#7a6010;
-      --blue:      #3de0ff;
-      --blue-dim:  #1a6070;
-      --purple:    #a78bfa;
-      --accent:    #00e5a0;
-      --radius:    6px;
-      --font-mono: 'JetBrains Mono', monospace;
-      --font-ui:   'Syne', sans-serif;
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
-    html, body {
+    :root {
+      --bg: #080b10;
+      --bg-panel: #0d1117;
+      --bg-card: #111720;
+      --border: #1e2a38;
+      --border-hi: #2a3f58;
+      --text: #c8d6e5;
+      --text-dim: #5a7490;
+      --text-muted: #344657;
+      --green: #00e5a0;
+      --green-dim: #00a36e;
+      --red: #ff4757;
+      --red-dim: #8b1c2e;
+      --yellow: #ffd32a;
+      --yellow-dim: #7a6010;
+      --blue: #3de0ff;
+      --blue-dim: #1a6070;
+      --accent: #00e5a0;
+      --radius: 6px;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-ui: 'Syne', sans-serif;
+    }
+
+    html,
+    body {
       height: 100%;
       background: var(--bg);
       color: var(--text);
@@ -44,29 +52,22 @@
       overflow: hidden;
     }
 
-    /* ── Scanline overlay ────────────────────────────────────────────── */
     body::before {
       content: '';
-      position: fixed; inset: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0,0,0,0.07) 2px,
-        rgba(0,0,0,0.07) 4px
-      );
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.07) 2px, rgba(0, 0, 0, 0.07) 4px);
       pointer-events: none;
       z-index: 9999;
     }
 
-    /* ── Layout ──────────────────────────────────────────────────────── */
     #app {
       display: grid;
-      grid-template-rows: 56px 1fr;
+      grid-template-rows: 56px 36px 1fr;
       height: 100vh;
     }
 
-    /* ── Header ──────────────────────────────────────────────────────── */
+    /* ── Header ── */
     header {
       display: flex;
       align-items: center;
@@ -89,20 +90,40 @@
       white-space: nowrap;
     }
 
-    .logo-dot { color: var(--text-dim); }
+    .logo-dot {
+      color: var(--text-dim);
+    }
 
     .logo-icon {
-      width: 28px; height: 28px;
+      width: 28px;
+      height: 28px;
       border: 2px solid var(--green);
       border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 14px;
       animation: pulse-border 3s ease-in-out infinite;
     }
 
     @keyframes pulse-border {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(0,229,160,0.4); }
-      50%       { box-shadow: 0 0 0 6px rgba(0,229,160,0); }
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 229, 160, 0.4);
+      }
+
+      50% {
+        box-shadow: 0 0 0 6px rgba(0, 229, 160, 0);
+      }
+    }
+
+    .logo-tagline {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      letter-spacing: 0.3px;
+      white-space: nowrap;
     }
 
     .header-center {
@@ -110,7 +131,7 @@
       align-items: center;
       gap: 8px;
       flex: 1;
-      max-width: 620px;
+      max-width: 700px;
     }
 
     .incident-select {
@@ -126,7 +147,9 @@
       cursor: pointer;
     }
 
-    .incident-select:focus { border-color: var(--green-dim); }
+    .incident-select:focus {
+      border-color: var(--green-dim);
+    }
 
     .btn {
       padding: 6px 14px;
@@ -145,8 +168,15 @@
       color: #000;
     }
 
-    .btn-primary:hover { background: #00ffb3; }
-    .btn-primary:disabled { background: var(--green-dim); color: #001a0f; cursor: not-allowed; }
+    .btn-primary:hover {
+      background: #00ffb3;
+    }
+
+    .btn-primary:disabled {
+      background: var(--green-dim);
+      color: #001a0f;
+      cursor: not-allowed;
+    }
 
     .btn-ghost {
       background: transparent;
@@ -154,8 +184,25 @@
       border: 1px solid var(--border);
     }
 
-    .btn-ghost:hover { border-color: var(--border-hi); color: var(--text); }
-    .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost:hover {
+      border-color: var(--border-hi);
+      color: var(--text);
+    }
+
+    .btn-ghost:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-yellow {
+      background: rgba(255, 211, 42, 0.12);
+      color: var(--yellow);
+      border: 1px solid var(--yellow-dim);
+    }
+
+    .btn-yellow:hover {
+      background: rgba(255, 211, 42, 0.2);
+    }
 
     .header-right {
       display: flex;
@@ -176,15 +223,72 @@
     }
 
     .state-badge.active {
-      background: rgba(0,229,160,0.12);
+      background: rgba(0, 229, 160, 0.12);
       border-color: var(--green-dim);
       color: var(--green);
     }
 
-    /* ── Main 4-panel grid ───────────────────────────────────────────── */
+    .timer {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    /* ── Model stack strip ── */
+    .model-strip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(13, 17, 23, 0.9);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .model-strip::-webkit-scrollbar {
+      display: none;
+    }
+
+    .model-strip-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      flex-shrink: 0;
+    }
+
+    .model-chip {
+      font-size: 9px;
+      padding: 2px 8px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+
+    .model-chip.active {
+      border-color: var(--green-dim);
+      color: var(--green);
+      background: rgba(0, 229, 160, 0.08);
+    }
+
+    .model-chip.groq {
+      border-color: var(--blue-dim);
+      color: var(--blue);
+    }
+
+    .model-chip.gemini {
+      border-color: rgba(66, 133, 244, 0.5);
+      color: #4285f4;
+    }
+
+    /* ── 5-panel grid: 3 columns, 2 rows. 5th panel = agent activity (col 3, spans 2 rows) ── */
     main {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 300px;
       grid-template-rows: 1fr 1fr;
       gap: 1px;
       background: var(--border);
@@ -198,14 +302,20 @@
       overflow: hidden;
     }
 
+    .panel-agent {
+      grid-column: 3;
+      grid-row: 1 / 3;
+    }
+
     .panel-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 14px;
+      padding: 8px 14px;
       border-bottom: 1px solid var(--border);
       background: var(--bg-card);
       flex-shrink: 0;
+      gap: 8px;
     }
 
     .panel-title {
@@ -226,6 +336,13 @@
       border-radius: 100px;
     }
 
+    .panel-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+    }
+
     .panel-body {
       flex: 1;
       overflow-y: auto;
@@ -235,12 +352,59 @@
       gap: 6px;
     }
 
-    /* Scrollbar */
-    .panel-body::-webkit-scrollbar { width: 4px; }
-    .panel-body::-webkit-scrollbar-track { background: transparent; }
-    .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .panel-body::-webkit-scrollbar {
+      width: 4px;
+    }
 
-    /* ── Empty state ─────────────────────────────────────────────────── */
+    .panel-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .panel-body::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    /* ── Drop zone ── */
+    .drop-zone {
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      margin-bottom: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10px;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dragover {
+      border-color: var(--blue-dim);
+      color: var(--blue);
+      background: rgba(61, 224, 255, 0.04);
+    }
+
+    .drop-zone input[type="file"] {
+      display: none;
+    }
+
+    .visual-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      padding: 2px 8px;
+      border-radius: 100px;
+      background: rgba(61, 224, 255, 0.1);
+      border: 1px solid var(--blue-dim);
+      color: var(--blue);
+      animation: slide-in 0.3s ease;
+    }
+
+    /* ── Empty state ── */
     .empty-state {
       display: flex;
       flex-direction: column;
@@ -252,9 +416,24 @@
       font-size: 11px;
     }
 
-    .empty-icon { font-size: 28px; opacity: 0.4; }
+    .empty-icon {
+      font-size: 28px;
+      opacity: 0.4;
+    }
 
-    /* ── Signal entry (Panel 1) ──────────────────────────────────────── */
+    @keyframes slide-in {
+      from {
+        opacity: 0;
+        transform: translateX(-6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    /* ── Signal entry ── */
     .signal-entry {
       padding: 7px 10px;
       border-radius: var(--radius);
@@ -263,14 +442,22 @@
       animation: slide-in 0.25s ease;
     }
 
-    @keyframes slide-in {
-      from { opacity: 0; transform: translateX(-6px); }
-      to   { opacity: 1; transform: translateX(0); }
+    .signal-entry.level-error {
+      border-color: var(--red);
     }
 
-    .signal-entry.level-error  { border-color: var(--red); }
-    .signal-entry.level-warn   { border-color: var(--yellow); }
-    .signal-entry.level-info   { border-color: var(--blue); }
+    .signal-entry.level-warn {
+      border-color: var(--yellow);
+    }
+
+    .signal-entry.level-info {
+      border-color: var(--blue);
+    }
+
+    .signal-entry.vision {
+      border-color: #4285f4;
+      background: rgba(66, 133, 244, 0.06);
+    }
 
     .signal-meta {
       display: flex;
@@ -285,9 +472,21 @@
       letter-spacing: 0.4px;
     }
 
-    .signal-entry.level-error  .signal-source { color: var(--red); }
-    .signal-entry.level-warn   .signal-source { color: var(--yellow); }
-    .signal-entry.level-info   .signal-source { color: var(--blue); }
+    .signal-entry.level-error .signal-source {
+      color: var(--red);
+    }
+
+    .signal-entry.level-warn .signal-source {
+      color: var(--yellow);
+    }
+
+    .signal-entry.level-info .signal-source {
+      color: var(--blue);
+    }
+
+    .signal-entry.vision .signal-source {
+      color: #4285f4;
+    }
 
     .signal-time {
       font-size: 10px;
@@ -300,7 +499,47 @@
       word-break: break-word;
     }
 
-    /* ── Hypothesis card (Panel 2) ───────────────────────────────────── */
+    /* ── Confidence meter ── */
+    .confidence-meter {
+      padding: 8px 12px;
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      margin-bottom: 6px;
+    }
+
+    .conf-meter-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    .conf-meter-bar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .conf-meter-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), var(--green));
+      border-radius: 3px;
+      transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      width: 0%;
+    }
+
+    .conf-meter-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--green);
+      font-family: var(--font-ui);
+      margin-top: 4px;
+    }
+
+    /* ── Hypothesis card ── */
     .hyp-card {
       padding: 9px 12px;
       border-radius: var(--radius);
@@ -312,18 +551,18 @@
 
     .hyp-card.testing {
       border-color: var(--yellow-dim);
-      background: rgba(255,211,42,0.05);
+      background: rgba(255, 211, 42, 0.05);
     }
 
     .hyp-card.rejected {
       border-color: var(--red-dim);
-      background: rgba(255,71,87,0.06);
+      background: rgba(255, 71, 87, 0.06);
       opacity: 0.7;
     }
 
     .hyp-card.confirmed {
       border-color: var(--green-dim);
-      background: rgba(0,229,160,0.06);
+      background: rgba(0, 229, 160, 0.06);
     }
 
     .hyp-header {
@@ -339,17 +578,34 @@
       width: 20px;
       height: 20px;
       border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       border: 1px solid var(--border);
       color: var(--text-dim);
       flex-shrink: 0;
     }
 
-    .hyp-card.confirmed .hyp-num { border-color: var(--green); color: var(--green); }
-    .hyp-card.rejected  .hyp-num { border-color: var(--red); color: var(--red); }
-    .hyp-card.testing   .hyp-num { border-color: var(--yellow); color: var(--yellow); }
+    .hyp-card.confirmed .hyp-num {
+      border-color: var(--green);
+      color: var(--green);
+    }
 
-    .hyp-desc { font-size: 11.5px; color: var(--text); flex: 1; }
+    .hyp-card.rejected .hyp-num {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .hyp-card.testing .hyp-num {
+      border-color: var(--yellow);
+      color: var(--yellow);
+    }
+
+    .hyp-desc {
+      font-size: 11.5px;
+      color: var(--text);
+      flex: 1;
+    }
 
     .hyp-status-badge {
       font-size: 9px;
@@ -361,10 +617,43 @@
       flex-shrink: 0;
     }
 
-    .badge-pending  { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
-    .badge-testing  { background: rgba(255,211,42,0.15); color: var(--yellow); }
-    .badge-rejected { background: rgba(255,71,87,0.15); color: var(--red); }
-    .badge-confirmed{ background: rgba(0,229,160,0.15); color: var(--green); }
+    .badge-pending {
+      background: var(--bg);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .badge-testing {
+      background: rgba(255, 211, 42, 0.15);
+      color: var(--yellow);
+    }
+
+    .badge-rejected {
+      background: rgba(255, 71, 87, 0.15);
+      color: var(--red);
+    }
+
+    .badge-confirmed {
+      background: rgba(0, 229, 160, 0.15);
+      color: var(--green);
+    }
+
+    /* Evidence color coding */
+    .hyp-reason {
+      font-size: 10.5px;
+      border-top: 1px solid var(--border);
+      padding-top: 5px;
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    .hyp-reason.rejection {
+      color: #e86a77;
+    }
+
+    .hyp-reason.confirmation {
+      color: var(--green-dim);
+    }
 
     .hyp-confidence {
       display: flex;
@@ -387,26 +676,51 @@
       transition: width 0.5s ease;
     }
 
-    .hyp-card.confirmed .conf-fill { background: var(--green); }
-    .hyp-card.rejected  .conf-fill { background: var(--red); }
-    .hyp-card.testing   .conf-fill { background: var(--yellow); }
-    .hyp-card           .conf-fill { background: var(--text-dim); }
-
-    .conf-label { font-size: 10px; color: var(--text-dim); }
-
-    .hyp-reason {
-      font-size: 10.5px;
-      color: var(--text-dim);
-      border-top: 1px solid var(--border);
-      padding-top: 5px;
-      margin-top: 4px;
-      line-height: 1.5;
+    .hyp-card.confirmed .conf-fill {
+      background: var(--green);
     }
 
-    .hyp-reason.rejection { color: #e86a77; }
-    .hyp-reason.confirmation { color: var(--green-dim); }
+    .hyp-card.rejected .conf-fill {
+      background: var(--red);
+    }
 
-    /* ── Reasoning trace (Panel 3) ───────────────────────────────────── */
+    .hyp-card.testing .conf-fill {
+      background: var(--yellow);
+    }
+
+    .hyp-card .conf-fill {
+      background: var(--text-dim);
+    }
+
+    .conf-label {
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    /* Evidence indicator */
+    .evidence-indicator {
+      font-size: 10px;
+      display: flex;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .ev-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .ev-dot.supports {
+      background: var(--green);
+    }
+
+    .ev-dot.rejects {
+      background: var(--red);
+    }
+
+    /* ── Reasoning Trace ── */
     .trace-entry {
       display: flex;
       gap: 10px;
@@ -422,19 +736,47 @@
     }
 
     .trace-dot {
-      width: 8px; height: 8px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       border: 2px solid var(--text-muted);
       background: var(--bg);
       flex-shrink: 0;
     }
 
-    .trace-dot.state   { border-color: var(--blue); background: var(--blue); }
-    .trace-dot.tool    { border-color: var(--yellow); background: var(--yellow); }
-    .trace-dot.result  { border-color: var(--text-dim); }
-    .trace-dot.reject  { border-color: var(--red); background: var(--red); }
-    .trace-dot.confirm { border-color: var(--green); background: var(--green); }
-    .trace-dot.flag    { border-color: var(--purple); background: var(--purple); }
+    .trace-dot.state {
+      border-color: var(--blue);
+      background: var(--blue);
+    }
+
+    .trace-dot.tool {
+      border-color: var(--yellow);
+      background: var(--yellow);
+    }
+
+    .trace-dot.result {
+      border-color: var(--text-dim);
+    }
+
+    .trace-dot.reject {
+      border-color: var(--red);
+      background: var(--red);
+    }
+
+    .trace-dot.confirm {
+      border-color: var(--green);
+      background: var(--green);
+    }
+
+    .trace-dot.flag {
+      border-color: #a78bfa;
+      background: #a78bfa;
+    }
+
+    .trace-dot.agent {
+      border-color: #4285f4;
+      background: #4285f4;
+    }
 
     .trace-connector {
       flex: 1;
@@ -444,7 +786,10 @@
       margin: 2px 0;
     }
 
-    .trace-content { flex: 1; padding-bottom: 8px; }
+    .trace-content {
+      flex: 1;
+      padding-bottom: 8px;
+    }
 
     .trace-label {
       font-size: 9px;
@@ -454,13 +799,37 @@
       margin-bottom: 2px;
     }
 
-    .trace-label.state   { color: var(--blue); }
-    .trace-label.tool    { color: var(--yellow); }
-    .trace-label.result  { color: var(--text-dim); }
-    .trace-label.reject  { color: var(--red); }
-    .trace-label.confirm { color: var(--green); }
-    .trace-label.flag    { color: var(--purple); }
-    .trace-label.signal  { color: var(--text-muted); }
+    .trace-label.state {
+      color: var(--blue);
+    }
+
+    .trace-label.tool {
+      color: var(--yellow);
+    }
+
+    .trace-label.result {
+      color: var(--text-dim);
+    }
+
+    .trace-label.reject {
+      color: var(--red);
+    }
+
+    .trace-label.confirm {
+      color: var(--green);
+    }
+
+    .trace-label.flag {
+      color: #a78bfa;
+    }
+
+    .trace-label.agent {
+      color: #4285f4;
+    }
+
+    .trace-label.signal {
+      color: var(--text-muted);
+    }
 
     .trace-text {
       font-size: 11px;
@@ -482,7 +851,89 @@
       overflow-y: auto;
     }
 
-    /* ── Post-mortem panel (Panel 4) ─────────────────────────────────── */
+    /* ── Timeline ── */
+    .timeline-scroll {
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+      padding: 0 10px 10px;
+      scrollbar-width: thin;
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .timeline-scroll::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    .timeline-scroll::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    .tl-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 120px;
+      position: relative;
+      padding-top: 8px;
+    }
+
+    .tl-item::before {
+      content: '';
+      position: absolute;
+      top: 16px;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .tl-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      z-index: 1;
+      flex-shrink: 0;
+      border: 2px solid var(--border);
+      background: var(--bg);
+    }
+
+    .tl-dot.misleading {
+      border-color: var(--red);
+      background: var(--red-dim);
+    }
+
+    .tl-dot.confirmed {
+      border-color: var(--green);
+      background: var(--green);
+    }
+
+    .tl-time {
+      font-size: 9px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .tl-label {
+      font-size: 9px;
+      color: var(--text-dim);
+      text-align: center;
+      padding: 0 4px;
+      line-height: 1.3;
+    }
+
+    /* ── Post-mortem panel ── */
+    .pm-toolbar {
+      display: flex;
+      gap: 6px;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+
     .pm-section {
       margin-bottom: 10px;
       animation: slide-in 0.3s ease;
@@ -509,7 +960,7 @@
 
     .pm-root-cause {
       padding: 10px 12px;
-      background: rgba(0,229,160,0.06);
+      background: rgba(0, 229, 160, 0.06);
       border: 1px solid var(--green-dim);
       border-radius: var(--radius);
       font-size: 11.5px;
@@ -554,11 +1005,13 @@
       color: var(--text);
     }
 
-    .pm-impact-value.severity-p1 { color: var(--red); }
+    .pm-impact-value.severity-p1 {
+      color: var(--red);
+    }
 
     .pm-rejected-item {
       padding: 6px 10px;
-      background: rgba(255,71,87,0.05);
+      background: rgba(255, 71, 87, 0.05);
       border-left: 2px solid var(--red-dim);
       border-radius: 0 var(--radius) var(--radius) 0;
       font-size: 10.5px;
@@ -577,7 +1030,9 @@
       line-height: 1.5;
     }
 
-    .pm-action-item:last-child { border-bottom: none; }
+    .pm-action-item:last-child {
+      border-bottom: none;
+    }
 
     .action-num {
       font-size: 9px;
@@ -589,7 +1044,7 @@
 
     .pm-detection-gap {
       padding: 8px 10px;
-      background: rgba(255,211,42,0.05);
+      background: rgba(255, 211, 42, 0.05);
       border: 1px solid var(--yellow-dim);
       border-radius: var(--radius);
       font-size: 11px;
@@ -597,18 +1052,183 @@
       line-height: 1.6;
     }
 
-    /* ── Governance gate ─────────────────────────────────────────────── */
+    .pm-contrib {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .contrib-chip {
+      font-size: 9px;
+      padding: 2px 7px;
+      border-radius: 100px;
+      background: rgba(61, 224, 255, 0.08);
+      border: 1px solid var(--blue-dim);
+      color: var(--blue);
+    }
+
+    .pm-models {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .pm-model-chip {
+      font-size: 9px;
+      padding: 2px 7px;
+      border-radius: 100px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+
+    /* ── Agent Activity panel ── */
+    .agent-dispatch-card {
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      animation: slide-in 0.3s ease;
+      position: relative;
+    }
+
+    .agent-dispatch-card.active {
+      border-color: var(--blue-dim);
+      background: rgba(66, 133, 244, 0.05);
+    }
+
+    .agent-dispatch-card.done {
+      border-color: var(--green-dim);
+      background: rgba(0, 229, 160, 0.04);
+    }
+
+    .agent-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      font-family: var(--font-ui);
+    }
+
+    .agent-model-badge {
+      display: inline-block;
+      font-size: 9px;
+      padding: 1px 6px;
+      border-radius: 100px;
+      background: rgba(61, 224, 255, 0.1);
+      border: 1px solid var(--blue-dim);
+      color: var(--blue);
+      margin-top: 3px;
+    }
+
+    .agent-task {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    .agent-status-dot {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+
+    .agent-status-dot.spinning {
+      background: var(--blue);
+      animation: agent-pulse 1s ease-in-out infinite;
+    }
+
+    .agent-status-dot.done {
+      background: var(--green);
+      animation: none;
+    }
+
+    @keyframes agent-pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.4;
+        transform: scale(1.4);
+      }
+    }
+
+    .agent-result-text {
+      font-size: 9px;
+      color: var(--green-dim);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    /* Neural network firing animation */
+    .agent-network {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin: 8px 0;
+      padding: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .agent-flow-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    .agent-node {
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      font-size: 9px;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .agent-node.active {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: rgba(61, 224, 255, 0.08);
+    }
+
+    .agent-node.done {
+      border-color: var(--green);
+      color: var(--green);
+      background: rgba(0, 229, 160, 0.06);
+    }
+
+    .agent-arrow {
+      color: var(--border-hi);
+      font-size: 10px;
+    }
+
+    /* ── Governance gate ── */
     #governance-gate {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(8,11,16,0.9);
+      background: rgba(8, 11, 16, 0.9);
       z-index: 100;
       align-items: center;
       justify-content: center;
     }
 
-    #governance-gate.visible { display: flex; }
+    #governance-gate.visible {
+      display: flex;
+    }
 
     .gate-card {
       background: var(--bg-panel);
@@ -617,13 +1237,20 @@
       padding: 28px 32px;
       max-width: 480px;
       width: 90%;
-      box-shadow: 0 0 60px rgba(0,229,160,0.1);
+      box-shadow: 0 0 60px rgba(0, 229, 160, 0.1);
       animation: gate-in 0.3s ease;
     }
 
     @keyframes gate-in {
-      from { opacity: 0; transform: scale(0.95); }
-      to   { opacity: 1; transform: scale(1); }
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
     }
 
     .gate-title {
@@ -658,25 +1285,107 @@
       margin-bottom: 18px;
     }
 
-    .gate-actions { display: flex; gap: 10px; }
+    .gate-actions {
+      display: flex;
+      gap: 10px;
+    }
 
-    /* ── Confidence warning ───────────────────────────────────────────── */
+    /* ── Generate Incident Modal ── */
+    #generate-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 11, 16, 0.92);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #generate-modal.visible {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-hi);
+      border-radius: 10px;
+      padding: 28px 32px;
+      max-width: 460px;
+      width: 90%;
+      box-shadow: 0 0 40px rgba(255, 211, 42, 0.05);
+      animation: gate-in 0.3s ease;
+    }
+
+    .modal-title {
+      font-family: var(--font-ui);
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--yellow);
+      margin-bottom: 6px;
+    }
+
+    .modal-subtitle {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+
+    .field-group {
+      margin-bottom: 14px;
+    }
+
+    .field-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 5px;
+      display: block;
+    }
+
+    .field-input,
+    .field-select {
+      width: 100%;
+      padding: 7px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      outline: none;
+    }
+
+    .field-input:focus,
+    .field-select:focus {
+      border-color: var(--yellow-dim);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    /* ── Confidence warning ── */
     .conf-warning {
       padding: 10px 12px;
-      background: rgba(167,139,250,0.08);
-      border: 1px solid rgba(167,139,250,0.3);
+      background: rgba(167, 139, 250, 0.08);
+      border: 1px solid rgba(167, 139, 250, 0.3);
       border-radius: var(--radius);
       font-size: 11px;
-      color: var(--purple);
+      color: #a78bfa;
       line-height: 1.6;
       animation: slide-in 0.3s ease;
       margin-bottom: 4px;
     }
 
-    /* ── Spinner ─────────────────────────────────────────────────────── */
+    /* ── Spinner ── */
     .spinner {
       display: inline-block;
-      width: 10px; height: 10px;
+      width: 10px;
+      height: 10px;
       border: 2px solid var(--border);
       border-top-color: var(--green);
       border-radius: 50%;
@@ -684,223 +1393,598 @@
       vertical-align: middle;
     }
 
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
 
-    /* ── Timer ───────────────────────────────────────────────────────── */
-    .timer {
-      font-size: 11px;
-      color: var(--text-muted);
-      font-family: var(--font-mono);
+    /* ── Debate Card (CriticAgent visual centerpiece) ── */
+    .debate-card {
+      border: 2px solid var(--red);
+      border-radius: var(--radius);
+      background: rgba(255, 71, 87, 0.06);
+      padding: 12px;
+      animation: debate-appear 0.4s ease;
+      margin-bottom: 6px;
+    }
+
+    @keyframes debate-appear {
+      from {
+        opacity: 0;
+        transform: scale(0.97);
+        border-color: transparent;
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+        border-color: var(--red);
+      }
+    }
+
+    .debate-banner {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--red);
+      text-align: center;
+      padding: 4px 0 8px;
+      font-family: var(--font-ui);
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid rgba(255, 71, 87, 0.3);
+      margin-bottom: 10px;
+    }
+
+    .debate-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .debate-side {
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      font-size: 10.5px;
+      line-height: 1.55;
+    }
+
+    .debate-side-rc {
+      background: rgba(0, 229, 160, 0.06);
+      border: 1px solid var(--green-dim);
+    }
+
+    .debate-side-crit {
+      background: rgba(255, 71, 87, 0.06);
+      border: 1px solid var(--red-dim);
+    }
+
+    .debate-role {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 5px;
+    }
+
+    .debate-role-rc {
+      color: var(--green);
+    }
+
+    .debate-role-crit {
+      color: var(--red);
+    }
+
+    .debate-resolution {
+      padding: 6px 10px;
+      border-radius: var(--radius);
+      font-size: 10.5px;
+      font-weight: 600;
+      text-align: center;
+      margin-top: 2px;
+    }
+
+    .debate-resolution.agree {
+      background: rgba(0, 229, 160, 0.1);
+      color: var(--green);
+    }
+
+    .debate-resolution.disagree {
+      background: rgba(255, 211, 42, 0.1);
+      color: var(--yellow);
+    }
+
+    /* Panel flash on debate */
+    @keyframes panel-red-flash {
+
+      0%,
+      100% {
+        outline: none;
+      }
+
+      8%,
+      24%,
+      40% {
+        outline: 3px solid var(--red);
+      }
+
+      16%,
+      32% {
+        outline: 3px solid transparent;
+      }
+    }
+
+    .panel-agent.debate-flash {
+      animation: panel-red-flash 2s ease;
+    }
+
+    /* ── Gemini inference signal (Google blue accent) ── */
+    .signal-entry.gemini-infer {
+      border-left-color: #4285f4;
+      background: rgba(66, 133, 244, 0.05);
+    }
+
+    .signal-entry.gemini-infer .signal-source {
+      color: #4285f4;
+    }
+
+    /* ── Webhook auto-trigger banner ── */
+    .webhook-banner {
+      display: none;
+      padding: 4px 14px;
+      background: rgba(255, 211, 42, 0.1);
+      border-bottom: 1px solid var(--yellow-dim);
+      font-size: 10px;
+      color: var(--yellow);
+      text-align: center;
+      letter-spacing: 0.3px;
+    }
+
+    .webhook-banner.visible {
+      display: block;
+      animation: slide-in 0.3s ease;
+    }
+
+    .btn-webhook {
+      background: rgba(255, 71, 87, 0.12);
+      color: var(--red);
+      border: 1px solid var(--red-dim);
+    }
+
+    .btn-webhook:hover {
+      background: rgba(255, 71, 87, 0.22);
     }
   </style>
 </head>
+
 <body>
-<div id="app">
-  <!-- ── Header ──────────────────────────────────────────────────────── -->
-  <header>
-    <div class="logo">
-      <div class="logo-icon">⊕</div>
-      PostMortem<span class="logo-dot">.</span>ai
-    </div>
-
-    <div class="header-center">
-      <select id="incident-select" class="incident-select">
-        <option value="">— Select an incident —</option>
-        <option value="incident_a">P1 · API Returning 500 Errors — OAuth Users · $38K · 47 min</option>
-        <option value="incident_b">P1 · Database Crash at 2AM · $21K · 31 min</option>
-        <option value="incident_c">P1 · Silent 504 Errors — No Obvious Cause · $94K · 68 min</option>
-      </select>
-      <button class="btn btn-primary" id="btn-investigate">Investigate</button>
-      <button class="btn btn-ghost" id="btn-random">⟳ Random</button>
-    </div>
-
-    <div class="header-right">
-      <div class="state-badge" id="state-badge">IDLE</div>
-      <div class="timer" id="timer">00:00</div>
-    </div>
-  </header>
-
-  <!-- ── 4-panel main grid ───────────────────────────────────────────── -->
-  <main>
-    <!-- Panel 1: Signal Feed -->
-    <div class="panel" id="panel-signals">
-      <div class="panel-header">
-        <span class="panel-title">Signal Feed</span>
-        <span class="panel-count" id="signal-count">0 signals</span>
-      </div>
-      <div class="panel-body" id="signal-feed">
-        <div class="empty-state">
-          <div class="empty-icon">📡</div>
-          <div>Waiting for incident...</div>
+  <div id="app">
+    <!-- ── Header ── -->
+    <header>
+      <div class="logo">
+        <div class="logo-icon">⊕</div>
+        <div>
+          PostMortem<span class="logo-dot">.</span>ai
+          <div class="logo-tagline">Autonomous Root Cause Analysis — Powered by Multi-Agent AI Reasoning</div>
         </div>
       </div>
+
+      <div class="header-center">
+        <select id="incident-select" class="incident-select">
+          <option value="">— Select an incident —</option>
+          <option value="incident_a">P1 · API 500 Errors — OAuth · $38K · 47 min</option>
+          <option value="incident_b">P1 · Database Crash 2AM · $21K · 31 min</option>
+          <option value="incident_c">P1 · Silent 504s · $94K · 68 min</option>
+          <option value="incident_d">P1 · ML Memory Leak · $156K · 383 min ★ Expert</option>
+          <option value="incident_e">P1 · Payment Cascade · $312K · 127 min ★ Expert</option>
+        </select>
+        <button class="btn btn-primary" id="btn-investigate">Investigate</button>
+        <button class="btn btn-ghost" id="btn-random" title="Press Space">⟳ Random</button>
+        <button class="btn btn-yellow" id="btn-generate">+ Generate</button>
+        <button class="btn btn-webhook" id="btn-simulate-webhook" title="Simulate a PagerDuty webhook firing">⚡
+          Webhook</button>
+      </div>
+
+      <div class="header-right">
+        <div class="state-badge" id="state-badge">IDLE</div>
+        <div class="timer" id="timer">00:00</div>
+      </div>
+    </header>
+
+    <!-- Webhook auto-trigger banner -->
+    <div class="webhook-banner" id="webhook-banner">⚡ Auto-triggered via PagerDuty Webhook — no human intervention
+      required</div>
+
+    <!-- ── Model stack strip ── -->
+    <div class="model-strip">
+      <span class="model-strip-label">Agent Model Stack</span>
+      <span class="model-chip" id="chip-hyp" title="HypothesisAgent">HypothesisAgent · llama-3.3-70b</span>
+      <span class="model-chip" id="chip-ev" title="EvidenceAgent">EvidenceAgent · llama-3.1-8b</span>
+      <span class="model-chip" id="chip-rc" title="RootCauseAgent">RootCauseAgent · llama-3.3-70b</span>
+      <span class="model-chip" id="chip-rep" title="ReportAgent">ReportAgent · compound-beta</span>
+      <span class="model-chip" id="chip-crit" title="CriticAgent">CriticAgent · qwen3-32b</span>
+      <span class="model-chip gemini" id="chip-vision" title="VisionAgent">VisionAgent · gemini-2.5-flash</span>
     </div>
 
-    <!-- Panel 2: Hypothesis Board -->
-    <div class="panel" id="panel-hypotheses">
-      <div class="panel-header">
-        <span class="panel-title">Hypothesis Board</span>
-        <span class="panel-count" id="hyp-count">0 hypotheses</span>
-      </div>
-      <div class="panel-body" id="hyp-board">
-        <div class="empty-state">
-          <div class="empty-icon">🔬</div>
-          <div>Awaiting signals...</div>
+    <!-- ── 5-panel main grid ── -->
+    <main>
+      <!-- Panel 1: Signal Feed (top-left) -->
+      <div class="panel" id="panel-signals">
+        <div class="panel-header">
+          <span class="panel-title">Signal Feed</span>
+          <div class="panel-header-actions">
+            <span id="visual-badge" style="display:none" class="visual-badge">📸 Visual Evidence</span>
+            <span class="panel-count" id="signal-count">0 signals</span>
+          </div>
+        </div>
+        <!-- Drop zone -->
+        <div class="drop-zone" id="drop-zone" title="Drop a dashboard screenshot for Gemini analysis">
+          <label for="screenshot-input" style="cursor:pointer;display:flex;align-items:center;gap:6px;width:100%">
+            📸 Drop screenshot for visual analysis (Gemini 2.5 Flash)
+            <input type="file" id="screenshot-input" accept="image/png,image/jpeg,image/jpg" />
+          </label>
+        </div>
+        <div class="panel-body" id="signal-feed">
+          <div class="empty-state">
+            <div class="empty-icon">📡</div>
+            <div>Waiting for incident...</div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Panel 3: Reasoning Trace -->
-    <div class="panel" id="panel-trace">
-      <div class="panel-header">
-        <span class="panel-title">Reasoning Trace</span>
-        <span class="panel-count" id="trace-count">0 steps</span>
-      </div>
-      <div class="panel-body" id="reasoning-trace">
-        <div class="empty-state">
-          <div class="empty-icon">🧠</div>
-          <div>Investigation not started</div>
+      <!-- Panel 2: Hypothesis Board (top-middle) -->
+      <div class="panel" id="panel-hypotheses">
+        <div class="panel-header">
+          <span class="panel-title">Hypothesis Board</span>
+          <span class="panel-count" id="hyp-count">0 hypotheses</span>
+        </div>
+        <div class="panel-body" id="hyp-board">
+          <div class="confidence-meter" id="conf-meter" style="display:none">
+            <div class="conf-meter-label">Root Cause Confidence</div>
+            <div class="conf-meter-bar">
+              <div class="conf-meter-fill" id="conf-meter-fill"></div>
+            </div>
+            <div class="conf-meter-value" id="conf-meter-value">0%</div>
+          </div>
+          <div class="empty-state">
+            <div class="empty-icon">🔬</div>
+            <div>Awaiting signals...</div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Panel 4: Post-mortem -->
-    <div class="panel" id="panel-postmortem">
-      <div class="panel-header">
-        <span class="panel-title">Post-mortem Report</span>
-        <span class="panel-count" id="pm-status">Pending</span>
+      <!-- Panel 3: Reasoning Trace (bottom-left) -->
+      <div class="panel" id="panel-trace">
+        <div class="panel-header">
+          <span class="panel-title">Reasoning Trace</span>
+          <span class="panel-count" id="trace-count">0 steps</span>
+        </div>
+        <div class="panel-body" id="reasoning-trace">
+          <div class="empty-state">
+            <div class="empty-icon">🧠</div>
+            <div>Investigation not started</div>
+          </div>
+        </div>
+        <!-- Timeline strip -->
+        <div class="timeline-scroll" id="timeline-strip" style="display:none"></div>
       </div>
-      <div class="panel-body" id="postmortem-panel">
-        <div class="empty-state">
-          <div class="empty-icon">📋</div>
-          <div>Report generated after investigation</div>
+
+      <!-- Panel 4: Post-mortem (bottom-middle) -->
+      <div class="panel" id="panel-postmortem">
+        <div class="panel-header">
+          <span class="panel-title">Post-mortem Report</span>
+          <span class="panel-count" id="pm-status">Pending</span>
+        </div>
+        <div id="pm-toolbar" class="pm-toolbar" style="display:none">
+          <button class="btn btn-ghost" id="btn-export-md" style="font-size:10px;padding:4px 10px">⬇ Export
+            Markdown</button>
+        </div>
+        <div class="panel-body" id="postmortem-panel">
+          <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <div>Report generated after investigation</div>
+          </div>
         </div>
       </div>
-    </div>
-  </main>
-</div>
 
-<!-- ── Governance Gate Modal ──────────────────────────────────────────── -->
-<div id="governance-gate">
-  <div class="gate-card">
-    <div class="gate-title">Root Cause Identified</div>
-    <div class="gate-subtitle">
-      PostMortem.ai has completed its investigation. Review the finding before publishing the post-mortem.
-    </div>
-    <div class="gate-root-cause" id="gate-root-cause">—</div>
-    <div class="gate-confidence" id="gate-confidence">—</div>
-    <div class="gate-actions">
-      <button class="btn btn-primary" id="btn-approve">✓ Approve &amp; Generate Report</button>
-      <button class="btn btn-ghost" id="btn-reject-gate">✗ Flag for Review</button>
+      <!-- Panel 5: Agent Activity (right column, spans both rows) -->
+      <div class="panel panel-agent" id="panel-agent">
+        <div class="panel-header">
+          <span class="panel-title">Agent Activity</span>
+          <span class="panel-count" id="agent-count">0 dispatches</span>
+        </div>
+        <div class="panel-body" id="agent-feed">
+          <!-- Agent network diagram -->
+          <div class="agent-network" id="agent-network">
+            <div class="agent-flow-row">
+              <span class="agent-node" id="an-ingest">INGEST</span>
+              <span class="agent-arrow">→</span>
+              <span class="agent-node" id="an-hyp">HypAgent</span>
+            </div>
+            <div class="agent-flow-row" style="padding-left:20px">
+              <span class="agent-arrow">↓</span>
+            </div>
+            <div class="agent-flow-row">
+              <span class="agent-node" id="an-ev">EvidAgent</span>
+              <span class="agent-arrow">→</span>
+              <span class="agent-node" id="an-rc">RootAgent</span>
+            </div>
+            <div class="agent-flow-row" style="padding-left:20px">
+              <span class="agent-arrow">↓</span>
+            </div>
+            <div class="agent-flow-row">
+              <span class="agent-node" id="an-crit">CriticAgent</span>
+              <span class="agent-arrow">→</span>
+              <span class="agent-node" id="an-rep">ReportAgent</span>
+            </div>
+          </div>
+          <div class="empty-state" id="agent-empty">
+            <div class="empty-icon">🤖</div>
+            <div>Agents idle</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ── Governance Gate ── -->
+  <div id="governance-gate">
+    <div class="gate-card">
+      <div class="gate-title">Root Cause Identified</div>
+      <div class="gate-subtitle">PostMortem.ai has completed its investigation. Review the finding before publishing.
+      </div>
+      <div class="gate-root-cause" id="gate-root-cause">—</div>
+      <div class="gate-confidence" id="gate-confidence">—</div>
+      <div class="gate-actions">
+        <button class="btn btn-primary" id="btn-approve">✓ Approve &amp; Generate Report</button>
+        <button class="btn btn-ghost" id="btn-reject-gate">✗ Flag for Review</button>
+      </div>
     </div>
   </div>
-</div>
 
-<script>
-// ── State ────────────────────────────────────────────────────────────────
-let evtSource = null;
-let timerInterval = null;
-let startTime = null;
-let signalCount = 0;
-let traceCount = 0;
-let hypMap = {};           // id → { el, status }
-let governanceData = null;
-let investigationActive = false;
+  <!-- ── Generate Incident Modal ── -->
+  <div id="generate-modal">
+    <div class="modal-card">
+      <div class="modal-title">⚡ Generate Custom Incident</div>
+      <div class="modal-subtitle">AI generates a realistic incident JSON and loads it for immediate investigation.</div>
+      <div class="field-group">
+        <label class="field-label" for="gen-service">Service Name</label>
+        <input type="text" id="gen-service" class="field-input"
+          placeholder="e.g. checkout-api, ml-pipeline, auth-service" />
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="gen-type">Incident Type</label>
+        <select id="gen-type" class="field-select">
+          <option value="latency">Latency Spike</option>
+          <option value="error">Error Rate Spike</option>
+          <option value="crash">Service Crash / OOM</option>
+          <option value="silent-failure">Silent Failure (no alerts)</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="gen-severity">Severity</label>
+        <select id="gen-severity" class="field-select">
+          <option value="P1">P1 — Critical</option>
+          <option value="P2">P2 — High</option>
+          <option value="P3">P3 — Medium</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-yellow" id="btn-gen-submit">⚡ Generate &amp; Investigate</button>
+        <button class="btn btn-ghost" id="btn-gen-cancel">Cancel</button>
+      </div>
+      <div id="gen-status" style="font-size:10px;color:var(--text-dim);margin-top:10px;display:none"></div>
+    </div>
+  </div>
 
-// ── DOM refs ─────────────────────────────────────────────────────────────
-const selectEl      = document.getElementById('incident-select');
-const btnInvestigate= document.getElementById('btn-investigate');
-const btnRandom     = document.getElementById('btn-random');
-const stateBadge    = document.getElementById('state-badge');
-const timerEl       = document.getElementById('timer');
-const signalFeed    = document.getElementById('signal-feed');
-const hypBoard      = document.getElementById('hyp-board');
-const traceEl       = document.getElementById('reasoning-trace');
-const pmPanel       = document.getElementById('postmortem-panel');
-const signalCountEl = document.getElementById('signal-count');
-const hypCountEl    = document.getElementById('hyp-count');
-const traceCountEl  = document.getElementById('trace-count');
-const pmStatusEl    = document.getElementById('pm-status');
-const gateEl        = document.getElementById('governance-gate');
-const gateRootCause = document.getElementById('gate-root-cause');
-const gateConf      = document.getElementById('gate-confidence');
-const btnApprove    = document.getElementById('btn-approve');
-const btnRejectGate = document.getElementById('btn-reject-gate');
+  <script>
+    // ── State ──────────────────────────────────────────────────────────────────
+    let evtSource = null;
+    let timerInterval = null;
+    let startTime = null;
+    let signalCount = 0;
+    let traceCount = 0;
+    let agentCount = 0;
+    let hypMap = {};
+    let governanceData = null;
+    let investigationActive = false;
+    let postmortemData = null;
+    let screenshotB64 = null;
+    let screenshotMime = 'image/png';
+    let currentConfidence = 0;
+    let timelineEvents = [];
 
-// ── Timer ────────────────────────────────────────────────────────────────
-function startTimer() {
-  startTime = Date.now();
-  timerInterval = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
-    const s = String(elapsed % 60).padStart(2, '0');
-    timerEl.textContent = `${m}:${s}`;
-  }, 500);
-}
+    // ── DOM refs ───────────────────────────────────────────────────────────────
+    const selectEl = document.getElementById('incident-select');
+    const btnInvestigate = document.getElementById('btn-investigate');
+    const btnRandom = document.getElementById('btn-random');
+    const btnGenerate = document.getElementById('btn-generate');
+    const btnSimulateWebhook = document.getElementById('btn-simulate-webhook');
+    const webhookBanner = document.getElementById('webhook-banner');
+    const stateBadge = document.getElementById('state-badge');
+    const timerEl = document.getElementById('timer');
+    const signalFeed = document.getElementById('signal-feed');
+    const hypBoard = document.getElementById('hyp-board');
+    const traceEl = document.getElementById('reasoning-trace');
+    const pmPanel = document.getElementById('postmortem-panel');
+    const agentFeed = document.getElementById('agent-feed');
+    const agentEmpty = document.getElementById('agent-empty');
+    const signalCountEl = document.getElementById('signal-count');
+    const hypCountEl = document.getElementById('hyp-count');
+    const traceCountEl = document.getElementById('trace-count');
+    const agentCountEl = document.getElementById('agent-count');
+    const pmStatusEl = document.getElementById('pm-status');
+    const gateEl = document.getElementById('governance-gate');
+    const gateRootCause = document.getElementById('gate-root-cause');
+    const gateConf = document.getElementById('gate-confidence');
+    const btnApprove = document.getElementById('btn-approve');
+    const btnRejectGate = document.getElementById('btn-reject-gate');
+    const confMeter = document.getElementById('conf-meter');
+    const confMeterFill = document.getElementById('conf-meter-fill');
+    const confMeterValue = document.getElementById('conf-meter-value');
+    const timelineStrip = document.getElementById('timeline-strip');
+    const pmToolbar = document.getElementById('pm-toolbar');
+    const btnExportMd = document.getElementById('btn-export-md');
+    const dropZone = document.getElementById('drop-zone');
+    const screenshotInput = document.getElementById('screenshot-input');
+    const visualBadge = document.getElementById('visual-badge');
+    const generateModal = document.getElementById('generate-modal');
+    const genService = document.getElementById('gen-service');
+    const genType = document.getElementById('gen-type');
+    const genSeverity = document.getElementById('gen-severity');
+    const btnGenSubmit = document.getElementById('btn-gen-submit');
+    const btnGenCancel = document.getElementById('btn-gen-cancel');
+    const genStatus = document.getElementById('gen-status');
 
-function stopTimer() {
-  clearInterval(timerInterval);
-}
+    // Agent network nodes
+    const anNodes = {
+      'ingest': document.getElementById('an-ingest'),
+      'HypothesisAgent': document.getElementById('an-hyp'),
+      'EvidenceAgent': document.getElementById('an-ev'),
+      'RootCauseAgent': document.getElementById('an-rc'),
+      'CriticAgent': document.getElementById('an-crit'),
+      'ReportAgent': document.getElementById('an-rep'),
+      'VisionAgent': null,
+    };
 
-// ── Helpers ───────────────────────────────────────────────────────────────
-function setStateBadge(state) {
-  stateBadge.textContent = state;
-  stateBadge.classList.toggle('active', state !== 'IDLE');
-}
+    const chipMap = {
+      'HypothesisAgent': document.getElementById('chip-hyp'),
+      'EvidenceAgent': document.getElementById('chip-ev'),
+      'RootCauseAgent': document.getElementById('chip-rc'),
+      'ReportAgent': document.getElementById('chip-rep'),
+      'CriticAgent': document.getElementById('chip-crit'),
+      'VisionAgent': document.getElementById('chip-vision'),
+    };
 
-function scrollBottom(el) {
-  el.scrollTop = el.scrollHeight;
-}
+    // ── Timer ──────────────────────────────────────────────────────────────────
+    function startTimer() {
+      startTime = Date.now();
+      timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+        const s = String(elapsed % 60).padStart(2, '0');
+        timerEl.textContent = `${m}:${s}`;
+      }, 500);
+    }
 
-function formatTimestamp(iso) {
-  try {
-    return new Date(iso).toISOString().slice(11, 19) + 'Z';
-  } catch {
-    return iso;
-  }
-}
+    function stopTimer() { clearInterval(timerInterval); }
 
-function clearPanels() {
-  signalFeed.innerHTML = '<div class="empty-state"><div class="empty-icon">📡</div><div>Collecting signals...</div></div>';
-  hypBoard.innerHTML = '<div class="empty-state"><div class="empty-icon">🔬</div><div>Generating hypotheses...</div></div>';
-  traceEl.innerHTML = '<div class="empty-state"><div class="empty-icon">🧠</div><div>Starting investigation...</div></div>';
-  pmPanel.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div>Report pending...</div></div>';
-  signalCount = 0; traceCount = 0; hypMap = {};
-  signalCountEl.textContent = '0 signals';
-  hypCountEl.textContent = '0 hypotheses';
-  traceCountEl.textContent = '0 steps';
-  pmStatusEl.textContent = 'Pending';
-  timerEl.textContent = '00:00';
-}
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    function setStateBadge(state) {
+      stateBadge.textContent = state;
+      stateBadge.classList.toggle('active', state !== 'IDLE');
+    }
 
-// ── Panel 1: Signal Feed ──────────────────────────────────────────────────
-function addSignal(sig) {
-  if (signalCount === 0) signalFeed.innerHTML = '';
-  signalCount++;
-  signalCountEl.textContent = `${signalCount} signal${signalCount !== 1 ? 's' : ''}`;
+    function scrollBottom(el) { el.scrollTop = el.scrollHeight; }
 
-  const levelClass = `level-${sig.level || 'info'}`;
-  const div = document.createElement('div');
-  div.className = `signal-entry ${levelClass}`;
-  div.innerHTML = `
+    function formatTimestamp(iso) {
+      try { return new Date(iso).toISOString().slice(11, 19) + 'Z'; }
+      catch { return iso || ''; }
+    }
+
+    function escHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function clearPanels() {
+      signalFeed.innerHTML = '<div class="empty-state"><div class="empty-icon">📡</div><div>Collecting signals...</div></div>';
+      hypBoard.innerHTML = '';
+      hypBoard.appendChild(confMeter);
+      confMeter.style.display = 'none';
+      const emptyHyp = document.createElement('div');
+      emptyHyp.className = 'empty-state';
+      emptyHyp.innerHTML = '<div class="empty-icon">🔬</div><div>Generating hypotheses...</div>';
+      hypBoard.appendChild(emptyHyp);
+      traceEl.innerHTML = '<div class="empty-state"><div class="empty-icon">🧠</div><div>Starting investigation...</div></div>';
+      pmPanel.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div>Report pending...</div></div>';
+      agentFeed.innerHTML = '';
+      agentFeed.appendChild(document.getElementById('agent-network'));
+      agentFeed.appendChild(agentEmpty);
+      agentEmpty.style.display = 'none';
+      signalCount = 0; traceCount = 0; agentCount = 0; hypMap = {}; timelineEvents = [];
+      signalCountEl.textContent = '0 signals';
+      hypCountEl.textContent = '0 hypotheses';
+      traceCountEl.textContent = '0 steps';
+      agentCountEl.textContent = '0 dispatches';
+      pmStatusEl.textContent = 'Pending';
+      timerEl.textContent = '00:00';
+      timelineStrip.style.display = 'none';
+      timelineStrip.innerHTML = '';
+      pmToolbar.style.display = 'none';
+      visualBadge.style.display = 'none';
+      currentConfidence = 0;
+      setConfidenceMeter(0);
+      // Keep webhook banner if it was set by a webhook trigger — cleared after completion
+      // Reset agent network nodes
+      Object.values(anNodes).forEach(n => n && n.classList.remove('active', 'done'));
+      Object.values(chipMap).forEach(c => c && c.classList.remove('active', 'groq', 'gemini'));
+    }
+
+    function setConfidenceMeter(pct) {
+      currentConfidence = pct;
+      confMeter.style.display = 'block';
+      confMeterFill.style.width = `${pct}%`;
+      confMeterValue.textContent = `${pct}%`;
+    }
+
+    // ── Drag-and-drop screenshot ───────────────────────────────────────────────
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) handleScreenshot(file);
+    });
+    screenshotInput.addEventListener('change', e => {
+      if (e.target.files[0]) handleScreenshot(e.target.files[0]);
+    });
+
+    function handleScreenshot(file) {
+      const reader = new FileReader();
+      reader.onload = evt => {
+        const dataUrl = evt.target.result;
+        const b64 = dataUrl.split(',')[1];
+        screenshotB64 = b64;
+        screenshotMime = file.type || 'image/png';
+        dropZone.innerHTML = `<span style="color:var(--green);font-size:10px">📸 ${escHtml(file.name)} ready — will analyze on next investigation</span>`;
+        visualBadge.style.display = 'inline-flex';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // ── Panel 1: Signal Feed ───────────────────────────────────────────────────
+    function addSignal(sig) {
+      const empties = signalFeed.querySelectorAll('.empty-state');
+      empties.forEach(e => e.remove());
+      signalCount++;
+      signalCountEl.textContent = `${signalCount} signal${signalCount !== 1 ? 's' : ''}`;
+
+      const isVision = sig.source && sig.source.toLowerCase().includes('vision');
+      const levelClass = isVision ? 'vision' : `level-${sig.level || 'info'}`;
+      const div = document.createElement('div');
+      div.className = `signal-entry ${levelClass}`;
+      div.innerHTML = `
     <div class="signal-meta">
       <span class="signal-source">${escHtml(sig.source)}</span>
       <span class="signal-time">${formatTimestamp(sig.timestamp)}</span>
     </div>
     <div class="signal-msg">${escHtml(sig.message)}</div>
   `;
-  signalFeed.appendChild(div);
-  scrollBottom(signalFeed);
-}
+      signalFeed.appendChild(div);
+      scrollBottom(signalFeed);
+    }
 
-// ── Panel 2: Hypothesis Board ─────────────────────────────────────────────
-function addHypothesis(id, description, confidence) {
-  if (Object.keys(hypMap).length === 0) hypBoard.innerHTML = '';
+    // ── Panel 2: Hypothesis Board ──────────────────────────────────────────────
+    function addHypothesis(id, description, confidence) {
+      const empties = hypBoard.querySelectorAll('.empty-state');
+      empties.forEach(e => e.remove());
 
-  const card = document.createElement('div');
-  card.className = 'hyp-card';
-  card.id = `hyp-${id}`;
-  card.innerHTML = `
+      const card = document.createElement('div');
+      card.className = 'hyp-card';
+      card.id = `hyp-${id}`;
+      card.innerHTML = `
     <div class="hyp-header">
       <div class="hyp-num">${id}</div>
       <div class="hyp-desc">${escHtml(description)}</div>
@@ -911,346 +1995,679 @@ function addHypothesis(id, description, confidence) {
       <span class="conf-label" id="hyp-conf-label-${id}">${confidence}%</span>
     </div>
   `;
-  hypBoard.appendChild(card);
-  hypMap[id] = { el: card };
-  hypCountEl.textContent = `${Object.keys(hypMap).length} hypotheses`;
-  scrollBottom(hypBoard);
-}
-
-function updateHypStatus(id, status, confidence, reason) {
-  const card = document.getElementById(`hyp-${id}`);
-  const badge = document.getElementById(`hyp-badge-${id}`);
-  const fill = document.getElementById(`hyp-conf-fill-${id}`);
-  const confLabel = document.getElementById(`hyp-conf-label-${id}`);
-  if (!card) return;
-
-  card.classList.remove('testing', 'rejected', 'confirmed');
-  badge.classList.remove('badge-pending', 'badge-testing', 'badge-rejected', 'badge-confirmed');
-
-  if (status === 'testing') {
-    card.classList.add('testing');
-    badge.classList.add('badge-testing');
-    badge.textContent = 'TESTING';
-  } else if (status === 'rejected') {
-    card.classList.add('rejected');
-    badge.classList.add('badge-rejected');
-    badge.textContent = '✗ REJECTED';
-    if (fill) fill.style.width = '0%';
-    if (confLabel) confLabel.textContent = '—';
-    if (reason) {
-      const reasonEl = document.createElement('div');
-      reasonEl.className = 'hyp-reason rejection';
-      reasonEl.textContent = reason;
-      card.appendChild(reasonEl);
+      hypBoard.appendChild(card);
+      hypMap[id] = { el: card };
+      hypCountEl.textContent = `${Object.keys(hypMap).length} hypotheses`;
+      scrollBottom(hypBoard);
     }
-  } else if (status === 'confirmed') {
-    card.classList.add('confirmed');
-    badge.classList.add('badge-confirmed');
-    badge.textContent = `✓ ${confidence}%`;
-    if (fill) fill.style.width = `${confidence}%`;
-    if (confLabel) confLabel.textContent = `${confidence}%`;
-    if (reason) {
-      const reasonEl = document.createElement('div');
-      reasonEl.className = 'hyp-reason confirmation';
-      reasonEl.textContent = reason;
-      card.appendChild(reasonEl);
+
+    function updateHypStatus(id, status, confidence, reason) {
+      const card = document.getElementById(`hyp-${id}`);
+      const badge = document.getElementById(`hyp-badge-${id}`);
+      const fill = document.getElementById(`hyp-conf-fill-${id}`);
+      const confLabel = document.getElementById(`hyp-conf-label-${id}`);
+      if (!card) return;
+
+      card.classList.remove('testing', 'rejected', 'confirmed');
+      badge.classList.remove('badge-pending', 'badge-testing', 'badge-rejected', 'badge-confirmed');
+
+      if (status === 'testing') {
+        card.classList.add('testing');
+        badge.classList.add('badge-testing');
+        badge.textContent = 'TESTING';
+        setConfidenceMeter(Math.min(currentConfidence + 15, 50));
+      } else if (status === 'rejected') {
+        card.classList.add('rejected');
+        badge.classList.add('badge-rejected');
+        badge.textContent = '✗ REJECTED';
+        if (fill) fill.style.width = '0%';
+        if (confLabel) confLabel.textContent = '—';
+        if (reason) {
+          const reasonEl = document.createElement('div');
+          reasonEl.className = 'hyp-reason rejection';
+          reasonEl.innerHTML = '🔴 ' + escHtml(reason);
+          card.appendChild(reasonEl);
+        }
+        setConfidenceMeter(Math.max(currentConfidence - 10, 5));
+      } else if (status === 'confirmed') {
+        card.classList.add('confirmed');
+        badge.classList.add('badge-confirmed');
+        badge.textContent = `✓ ${confidence}%`;
+        if (fill) fill.style.width = `${confidence}%`;
+        if (confLabel) confLabel.textContent = `${confidence}%`;
+        if (reason) {
+          const reasonEl = document.createElement('div');
+          reasonEl.className = 'hyp-reason confirmation';
+          reasonEl.innerHTML = '🟢 ' + escHtml(reason);
+          card.appendChild(reasonEl);
+        }
+        setConfidenceMeter(confidence);
+      }
+      scrollBottom(hypBoard);
     }
-  }
-  scrollBottom(hypBoard);
-}
 
-// ── Panel 3: Reasoning Trace ──────────────────────────────────────────────
-function addTrace(type, label, text, data) {
-  if (traceCount === 0) traceEl.innerHTML = '';
-  traceCount++;
-  traceCountEl.textContent = `${traceCount} step${traceCount !== 1 ? 's' : ''}`;
+    // ── Panel 3: Reasoning Trace ───────────────────────────────────────────────
+    function addTrace(type, label, text, data) {
+      const empties = traceEl.querySelectorAll('.empty-state');
+      empties.forEach(e => e.remove());
+      traceCount++;
+      traceCountEl.textContent = `${traceCount} step${traceCount !== 1 ? 's' : ''}`;
 
-  const entry = document.createElement('div');
-  entry.className = 'trace-entry';
-
-  let dotClass = type;
-  let dataHtml = '';
-  if (data) {
-    const preview = JSON.stringify(data, null, 2).slice(0, 600);
-    dataHtml = `<div class="trace-data">${escHtml(preview)}</div>`;
-  }
-
-  entry.innerHTML = `
+      const entry = document.createElement('div');
+      entry.className = 'trace-entry';
+      let dataHtml = '';
+      if (data) {
+        const preview = JSON.stringify(data, null, 2).slice(0, 600);
+        dataHtml = `<div class="trace-data">${escHtml(preview)}</div>`;
+      }
+      entry.innerHTML = `
     <div class="trace-line">
-      <div class="trace-dot ${dotClass}"></div>
+      <div class="trace-dot ${type}"></div>
       <div class="trace-connector"></div>
     </div>
     <div class="trace-content">
-      <div class="trace-label ${dotClass}">${escHtml(label)}</div>
+      <div class="trace-label ${type}">${escHtml(label)}</div>
       <div class="trace-text">${escHtml(text)}</div>
       ${dataHtml}
     </div>
   `;
-  traceEl.appendChild(entry);
-  scrollBottom(traceEl);
-}
+      traceEl.appendChild(entry);
+      scrollBottom(traceEl);
+    }
 
-// ── Panel 4: Post-mortem ──────────────────────────────────────────────────
-function renderPostmortem(pm) {
-  pmStatusEl.textContent = `${pm.confidence}% confidence`;
-  const impact = pm.impact || {};
+    // ── Timeline ───────────────────────────────────────────────────────────────
+    function addTimelineEvent(timestamp, label, misleading) {
+      timelineEvents.push({ timestamp, label, misleading });
+      timelineStrip.style.display = 'flex';
+      const item = document.createElement('div');
+      item.className = 'tl-item';
+      item.innerHTML = `
+    <div class="tl-dot ${misleading ? 'misleading' : 'confirmed'}"></div>
+    <div class="tl-time">${formatTimestamp(timestamp)}</div>
+    <div class="tl-label">${escHtml(label.slice(0, 40))}</div>
+  `;
+      timelineStrip.appendChild(item);
+      timelineStrip.scrollLeft = timelineStrip.scrollWidth;
+    }
 
-  const rejectedHtml = (pm.rejected || []).map(r =>
-    `<div class="pm-rejected-item">${escHtml(r)}</div>`
-  ).join('');
+    // ── Panel 5: Agent Activity ────────────────────────────────────────────────
+    function addAgentDispatch(agentName, task, model) {
+      agentEmpty.style.display = 'none';
+      agentCount++;
+      agentCountEl.textContent = `${agentCount} dispatch${agentCount !== 1 ? 'es' : ''}`;
 
-  const actionsHtml = (pm.action_items || []).map((a, i) =>
-    `<div class="pm-action-item"><span class="action-num">${i + 1}.</span><span>${escHtml(a)}</span></div>`
-  ).join('');
+      // Highlight network node
+      const nodeKey = agentName;
+      if (anNodes[nodeKey]) {
+        Object.values(anNodes).forEach(n => n && n.classList.remove('active'));
+        anNodes[nodeKey].classList.add('active');
+      }
 
-  pmPanel.innerHTML = `
+      // Activate chip
+      if (chipMap[agentName]) {
+        Object.values(chipMap).forEach(c => c && c.classList.remove('active'));
+        chipMap[agentName].classList.add('active');
+      }
+
+      const card = document.createElement('div');
+      card.className = 'agent-dispatch-card active';
+      card.id = `agent-card-${agentCount}`;
+      card.innerHTML = `
+    <div class="agent-status-dot spinning" id="agent-dot-${agentCount}"></div>
+    <div class="agent-name">${escHtml(agentName)}</div>
+    <div class="agent-model-badge">${escHtml(model)}</div>
+    <div class="agent-task">${escHtml(task)}</div>
+  `;
+      agentFeed.appendChild(card);
+      scrollBottom(agentFeed);
+      return agentCount;
+    }
+
+    function resolveAgentDispatch(agentName, resultSummary) {
+      // Find the most recent active card for this agent
+      const cards = agentFeed.querySelectorAll('.agent-dispatch-card.active');
+      let target = null;
+      cards.forEach(c => { if (c.querySelector('.agent-name')?.textContent === agentName) target = c; });
+      if (target) {
+        target.classList.remove('active');
+        target.classList.add('done');
+        const dot = target.querySelector('.agent-status-dot');
+        if (dot) { dot.classList.remove('spinning'); dot.classList.add('done'); }
+        if (resultSummary) {
+          const res = document.createElement('div');
+          res.className = 'agent-result-text';
+          res.textContent = '✓ ' + resultSummary;
+          target.appendChild(res);
+        }
+      }
+
+      // Mark network node done
+      if (anNodes[agentName]) {
+        anNodes[agentName].classList.remove('active');
+        anNodes[agentName].classList.add('done');
+      }
+      scrollBottom(agentFeed);
+    }
+
+    // ── Panel 4: Post-mortem ───────────────────────────────────────────────────
+    function renderPostmortem(pm) {
+      postmortemData = pm;
+      pmStatusEl.textContent = `${pm.confidence}% confidence`;
+      pmToolbar.style.display = 'flex';
+      const impact = pm.impact || {};
+
+      const rejectedHtml = (pm.rejected || []).map(r =>
+        `<div class="pm-rejected-item">🔴 ${escHtml(r)}</div>`
+      ).join('');
+
+      const actionsHtml = (pm.action_items || []).map((a, i) =>
+        `<div class="pm-action-item"><span class="action-num">${i + 1}.</span><span>${escHtml(a)}</span></div>`
+      ).join('');
+
+      const contribHtml = (pm.contributing_factors || []).map(f =>
+        `<span class="contrib-chip">${escHtml(f)}</span>`
+      ).join('');
+
+      const modelsUsed = pm.agent_models_used || {};
+      const modelHtml = Object.entries(modelsUsed).map(([role, model]) =>
+        `<span class="pm-model-chip">${escHtml(role)}: ${escHtml(model)}</span>`
+      ).join('');
+
+      pmPanel.innerHTML = `
     <div class="pm-section">
       <div class="pm-section-title">Root Cause</div>
       <div class="pm-root-cause">${escHtml(pm.root_cause)}</div>
       <div class="pm-confidence">
         <span class="spinner" style="margin-right:4px;border-top-color:var(--green)"></span>
         Confirmed at ${pm.confidence}% confidence
+        ${pm.token_count ? `&nbsp;·&nbsp; ${pm.token_count.toLocaleString()} tokens` : ''}
       </div>
     </div>
 
     <div class="pm-section">
       <div class="pm-section-title">Impact</div>
       <div class="pm-impact-grid">
-        <div class="pm-impact-card">
-          <div class="pm-impact-label">Severity</div>
-          <div class="pm-impact-value severity-p1">${escHtml(impact.severity || '—')}</div>
-        </div>
-        <div class="pm-impact-card">
-          <div class="pm-impact-label">Downtime</div>
-          <div class="pm-impact-value">${escHtml(String(impact.duration_minutes || '—'))} min</div>
-        </div>
-        <div class="pm-impact-card">
-          <div class="pm-impact-label">Affected Users</div>
-          <div class="pm-impact-value">${escHtml(impact.affected_users || '—')}</div>
-        </div>
-        <div class="pm-impact-card">
-          <div class="pm-impact-label">Revenue Impact</div>
-          <div class="pm-impact-value">${escHtml(impact.revenue_impact || '—')}</div>
-        </div>
+        <div class="pm-impact-card"><div class="pm-impact-label">Severity</div><div class="pm-impact-value severity-p1">${escHtml(impact.severity || '—')}</div></div>
+        <div class="pm-impact-card"><div class="pm-impact-label">Downtime</div><div class="pm-impact-value">${escHtml(String(impact.duration_minutes || '—'))} min</div></div>
+        <div class="pm-impact-card"><div class="pm-impact-label">Affected Users</div><div class="pm-impact-value">${escHtml(impact.affected_users || '—')}</div></div>
+        <div class="pm-impact-card"><div class="pm-impact-label">Revenue Impact</div><div class="pm-impact-value">${escHtml(impact.revenue_impact || '—')}</div></div>
       </div>
     </div>
 
-    ${rejectedHtml ? `
-    <div class="pm-section">
-      <div class="pm-section-title">Rejected Hypotheses</div>
-      ${rejectedHtml}
-    </div>` : ''}
+    ${rejectedHtml ? `<div class="pm-section"><div class="pm-section-title">Rejected Hypotheses</div>${rejectedHtml}</div>` : ''}
 
-    <div class="pm-section">
-      <div class="pm-section-title">Action Items</div>
-      ${actionsHtml}
-    </div>
+    ${contribHtml ? `<div class="pm-section"><div class="pm-section-title">Contributing Factors</div><div class="pm-contrib">${contribHtml}</div></div>` : ''}
 
-    <div class="pm-section">
-      <div class="pm-section-title">Detection Gap</div>
-      <div class="pm-detection-gap">${escHtml(pm.detection_gap || '—')}</div>
-    </div>
+    <div class="pm-section"><div class="pm-section-title">Action Items</div>${actionsHtml}</div>
+
+    <div class="pm-section"><div class="pm-section-title">Detection Gap</div><div class="pm-detection-gap">${escHtml(pm.detection_gap || '—')}</div></div>
+
+    ${modelHtml ? `<div class="pm-section"><div class="pm-section-title">Agent Models Used</div><div class="pm-models">${modelHtml}</div></div>` : ''}
   `;
-  scrollBottom(pmPanel);
-}
+      scrollBottom(pmPanel);
+    }
 
-// ── Event handler ─────────────────────────────────────────────────────────
-function handleEvent(evt) {
-  const e = evt;
-  switch (e.type) {
-    case 'state_change':
-      setStateBadge(e.state);
-      addTrace('state', e.state, e.message);
-      break;
+    // ── Export Markdown (Gap #5 — full structured post-mortem) ───────────────
+    btnExportMd.addEventListener('click', () => {
+      if (!postmortemData) return;
+      const pm = postmortemData;
+      const impact = pm.impact || {};
+      const now = new Date();
+      const dateTag = now.toISOString().slice(0, 10).replace(/-/g, '');
+      const timestamp = now.toUTCString();
 
-    case 'signals_collected':
-      addTrace('state', 'SIGNALS', `Collected ${e.count} signals from: ${(e.sources || []).join(', ')}`);
-      break;
+      // Build timeline table rows from pm.timeline or timelineEvents
+      const tlSource = (pm.timeline || []).length ? pm.timeline : timelineEvents;
+      const tlRows = tlSource.length
+        ? tlSource.map(t => `| ${t.timestamp || ''} | ${(t.event || t.label || '').replace(/\|/g, '/')} |`)
+        : ['| — | No timeline data recorded |'];
 
-    case 'signal_entry':
-      addSignal(e.signal);
-      break;
+      // Build action items table rows (Priority | Action | Owner | Due)
+      const actionRows = (pm.action_items || []).map((a, i) => {
+        const priority = i === 0 ? 'P1 — Immediate' : i === 1 ? 'P2 — This Sprint' : 'P3 — Backlog';
+        return `| ${priority} | ${a.replace(/\|/g, '/')} | On-call Team | TBD |`;
+      });
 
-    case 'hypothesis_created':
-      addHypothesis(e.id, e.description, e.confidence);
-      addTrace('state', `HYPOTHESIS ${e.id}`, e.description);
-      break;
-
-    case 'tool_call':
-      // Mark current hypothesis as testing
-      updateTestingHyp(e.tool);
-      addTrace('tool', `TOOL CALL · ${e.tool.toUpperCase()}`, e.message);
-      break;
-
-    case 'tool_result':
-      addTrace('result', `RESULT · ${e.tool.toUpperCase()}`,
-        `Received ${Array.isArray(e.data?.entries || e.data?.datapoints || e.data?.commits || e.data?.messages) ? (e.data.entries||e.data.datapoints||e.data.commits||e.data.messages||[]).length : (e.data?.count ?? 0)} entries`,
-        e.data
+      // Build agent activity rows from stored agent dispatches
+      const agentRows = Object.entries(pm.agent_models_used || {}).map(([role, model]) =>
+        `| ${role} | ${model} | Core investigation task | — |`
       );
-      break;
 
-    case 'hypothesis_rejected':
-      updateHypStatus(e.id, 'rejected', null, e.reason);
-      addTrace('reject', `✗ REJECTED · H${e.id}`, e.reason);
-      break;
+      const contribList = (pm.contributing_factors || []).map(f => `- ${f}`).join('\n') || '- None identified';
 
-    case 'hypothesis_confirmed':
-      updateHypStatus(e.id, 'confirmed', e.confidence, e.evidence);
-      addTrace('confirm', `✓ CONFIRMED · H${e.id} · ${e.confidence}%`, e.evidence);
-      break;
+      const lines = [
+        `# Post-Mortem Report: ${pm.title || pm.incident_id}`,
+        ``,
+        `**Severity:** ${impact.severity || '—'} | **Impact:** ${impact.revenue_impact || '—'} | **Duration:** ${impact.duration_minutes || '—'} min`,
+        `**Investigation completed:** ${timestamp}`,
+        `**Confidence:** ${pm.confidence || 0}%`,
+        ``,
+        `## Executive Summary`,
+        `PostMortem.ai autonomously investigated this incident using a 5-agent pipeline (Hypothesis → Evidence → RootCause → Critic → Report). ` +
+        `Root cause was confirmed at **${pm.confidence}% confidence** after evaluating ${(pm.rejected || []).length} rejected hypotheses. ` +
+        `The Critic Agent (qwen3-32b) independently validated the conclusion before report generation.`,
+        ``,
+        `## Timeline`,
+        `| Time | Event |`,
+        `|------|-------|`,
+        ...tlRows,
+        ``,
+        `## Root Cause`,
+        pm.root_cause || '—',
+        ``,
+        `## Contributing Factors`,
+        contribList,
+        ``,
+        `## Detection Gap`,
+        pm.detection_gap || '—',
+        ``,
+        `## Rejected Hypotheses`,
+        ...(pm.rejected || []).map(r => `- ❌ ${r}`),
+        ``,
+        `## Action Items`,
+        `| Priority | Action | Owner | Due |`,
+        `|----------|--------|-------|-----|`,
+        ...(actionRows.length ? actionRows : ['| P1 — Immediate | Review incident response | Team | TBD |']),
+        ``,
+        `## Impact`,
+        `| Metric | Value |`,
+        `|--------|-------|`,
+        `| Severity | ${impact.severity || '—'} |`,
+        `| Duration | ${impact.duration_minutes || '—'} min |`,
+        `| Affected Users | ${impact.affected_users || '—'} |`,
+        `| Revenue Impact | ${impact.revenue_impact || '—'} |`,
+        ``,
+        `## Agent Investigation Log`,
+        `| Agent | Model | Task | Confidence Delta |`,
+        `|-------|-------|------|-----------------|`,
+        ...agentRows,
+        ``,
+        `---`,
+        `*Generated by PostMortem.ai v2.0 — Multi-Agent Incident Investigation*`,
+        `*Models: Groq llama-3.3-70b-versatile + Gemini 2.5 Flash + qwen3-32b Critic*`,
+      ];
 
-    case 'confidence_low':
-      addConfidenceWarning(e.confidence, e.message);
-      addTrace('flag', `CONFIDENCE LOW · ${e.confidence}%`, e.message);
-      break;
+      const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `postmortem_${pm.incident_id || 'report'}_${dateTag}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
 
-    case 'governance_gate':
-      governanceData = e;
-      showGovernanceGate(e);
-      break;
+    // ── Confidence warning ─────────────────────────────────────────────────────
+    function addConfidenceWarning(confidence, message) {
+      const div = document.createElement('div');
+      div.className = 'conf-warning';
+      div.textContent = message;
+      hypBoard.appendChild(div);
+      scrollBottom(hypBoard);
+    }
 
-    case 'flagged_for_review':
-      setStateBadge('FLAGGED');
+    // ── Governance Gate ────────────────────────────────────────────────────────
+    function showGovernanceGate(data) {
+      gateRootCause.textContent = data.root_cause || data.message;
+      gateConf.textContent = `Investigation confidence: ${data.confidence}%`;
+      gateEl.classList.add('visible');
+    }
+
+    btnApprove.addEventListener('click', () => {
+      gateEl.classList.remove('visible');
+      addTrace('confirm', 'APPROVED', 'Human approved post-mortem generation. Generating report...');
+    });
+
+    btnRejectGate.addEventListener('click', () => {
+      gateEl.classList.remove('visible');
+      addTrace('flag', 'FLAGGED', 'Human flagged for further review.');
       pmStatusEl.textContent = 'Flagged';
-      addTrace('flag', 'FLAGGED FOR REVIEW',
-        `Confidence ${e.confidence}% — insufficient for autonomous conclusion. Human review required.`);
-      break;
+      setStateBadge('FLAGGED');
+    });
 
-    case 'postmortem':
-      renderPostmortem(e.data);
-      setStateBadge('COMPLETE');
-      addTrace('confirm', 'POST-MORTEM GENERATED', 'Report complete. Investigation closed.');
-      stopTimer();
-      setButtons(false);
-      break;
+    // ── Event handler ──────────────────────────────────────────────────────────
+    let currentTestingId = null;
 
-    case 'error':
-      addTrace('reject', 'ERROR', e.message);
-      setButtons(false);
-      stopTimer();
-      break;
+    function handleEvent(e) {
+      switch (e.type) {
+        case 'state_change':
+          setStateBadge(e.state);
+          addTrace('state', e.state, e.message);
+          break;
 
-    case 'done':
-      stopTimer();
-      setButtons(false);
-      break;
-  }
-}
+        case 'signals_collected':
+          addTrace('state', 'SIGNALS', `Collected ${e.count} signals from: ${(e.sources || []).join(', ')}`);
+          break;
 
-// Track which hypothesis is currently being tested
-let currentTestingId = null;
-function updateTestingHyp(toolName) {
-  // Find first hypothesis that hasn't been resolved yet
-  for (const [id, info] of Object.entries(hypMap)) {
-    const card = document.getElementById(`hyp-${id}`);
-    if (card && !card.classList.contains('rejected') && !card.classList.contains('confirmed')) {
-      updateHypStatus(parseInt(id), 'testing', null, null);
-      currentTestingId = id;
-      break;
-    }
-  }
-}
+        case 'signal_entry':
+          addSignal(e.signal);
+          break;
 
-function addConfidenceWarning(confidence, message) {
-  const div = document.createElement('div');
-  div.className = 'conf-warning';
-  div.textContent = message;
-  hypBoard.appendChild(div);
-  scrollBottom(hypBoard);
-}
+        case 'visual_evidence':
+          visualBadge.style.display = 'inline-flex';
+          addTrace('agent', 'VISION ANALYSIS', e.message);
+          break;
 
-// ── Governance Gate ───────────────────────────────────────────────────────
-function showGovernanceGate(data) {
-  gateRootCause.textContent = data.root_cause || data.message;
-  gateConf.textContent = `Investigation confidence: ${data.confidence}%`;
-  gateEl.classList.add('visible');
-}
+        case 'hypothesis_created':
+          addHypothesis(e.id, e.description, e.confidence);
+          addTrace('state', `HYPOTHESIS ${e.id}`, e.description);
+          break;
 
-btnApprove.addEventListener('click', () => {
-  gateEl.classList.remove('visible');
-  addTrace('confirm', 'APPROVED', 'Human approved post-mortem generation. Generating report...');
-});
+        case 'agent_dispatch':
+          addAgentDispatch(e.agent_name, e.task, e.model);
+          addTrace('agent', `DISPATCH · ${e.agent_name}`, `${e.task} [${e.model}]`);
+          break;
 
-btnRejectGate.addEventListener('click', () => {
-  gateEl.classList.remove('visible');
-  addTrace('flag', 'FLAGGED', 'Human flagged for further review. Investigation paused.');
-  pmStatusEl.textContent = 'Flagged';
-  setStateBadge('FLAGGED');
-});
+        case 'agent_result':
+          resolveAgentDispatch(e.agent_name, e.result_summary);
+          addTrace('agent', `RESULT · ${e.agent_name}`, e.result_summary);
+          break;
 
-// ── Investigation runner ──────────────────────────────────────────────────
-function startInvestigation(incidentId) {
-  if (evtSource) { evtSource.close(); evtSource = null; }
-  stopTimer();
+        case 'inter_agent_debate': {
+          // Flash the Agent Activity panel border red
+          const panelAgent = document.getElementById('panel-agent');
+          panelAgent.classList.remove('debate-flash');
+          void panelAgent.offsetWidth; // reflow to restart animation
+          panelAgent.classList.add('debate-flash');
+          setTimeout(() => panelAgent.classList.remove('debate-flash'), 2100);
 
-  clearPanels();
-  setStateBadge('INGEST');
-  setButtons(true);
-  startTimer();
-  investigationActive = true;
+          // Remove any stale debate card
+          document.querySelector('.debate-card')?.remove();
 
-  evtSource = new EventSource(`/investigate?incident_id=${incidentId}`);
+          const agrees = e.agrees !== false;
+          const card = document.createElement('div');
+          card.className = 'debate-card';
+          card.innerHTML = `
+        <div class="debate-banner">⚔️ CRITIC CHALLENGE — ${agrees ? 'CONCLUSION VALIDATED' : 'COUNTERARGUMENT RAISED'}</div>
+        <div class="debate-columns">
+          <div class="debate-side debate-side-rc">
+            <div class="debate-role debate-role-rc">RootCause Agent says:</div>
+            <div>${escHtml(e.original_says || '')}</div>
+          </div>
+          <div class="debate-side debate-side-crit">
+            <div class="debate-role debate-role-crit">Critic Agent (qwen3-32b) says:</div>
+            <div>${escHtml(e.critic_says || 'No logical gaps found')}</div>
+          </div>
+        </div>
+        <div class="debate-resolution ${agrees ? 'agree' : 'disagree'}">${escHtml(e.resolution || '')}</div>
+      `;
+          // Insert before the empty state placeholder
+          const emptyNode = document.getElementById('agent-empty');
+          agentFeed.insertBefore(card, emptyNode);
 
-  evtSource.onmessage = (msg) => {
-    try {
-      const parsed = JSON.parse(msg.data);
-      handleEvent(parsed);
-      if (parsed.type === 'done') {
-        evtSource.close();
-        evtSource = null;
-        investigationActive = false;
+          // Also surface it in the trace panel
+          addTrace('flag', 'AGENT DEBATE',
+            `Critic (qwen3-32b): ${e.critic_says || ''} | ${e.resolution || ''}`);
+          scrollBottom(agentFeed);
+          break;
+        }
+
+        case 'gemini_inference': {
+          // Gap #3: Gemini ran on every investigation
+          visualBadge.style.display = 'inline-flex';
+          const findings = e.findings || {};
+          const div = document.createElement('div');
+          div.className = 'signal-entry gemini-infer';
+          div.innerHTML = `
+        <div class="signal-meta">
+          <span class="signal-source">🤖 Gemini Visual Inference</span>
+          <span class="signal-time">${new Date().toISOString().slice(11, 19)}Z</span>
+        </div>
+        <div class="signal-msg">${escHtml(findings.visual_evidence || findings.visual_pattern || 'No visual pattern inferred')}</div>
+        ${(findings.affected_panels || []).length ? `<div style="margin-top:3px;font-size:9px;color:#4285f4">Grafana panels: ${(findings.affected_panels).map(p => escHtml(p)).join(' · ')}</div>` : ''}
+      `;
+          const empties = signalFeed.querySelectorAll('.empty-state');
+          empties.forEach(el => el.remove());
+          signalFeed.appendChild(div);
+          signalCount++;
+          signalCountEl.textContent = `${signalCount} signal${signalCount !== 1 ? 's' : ''}`;
+          addTrace('agent', 'GEMINI VISUAL INFERENCE', e.message || 'Visual pattern inferred from signal data');
+          scrollBottom(signalFeed);
+          break;
+        }
+
+        case 'tool_call':
+          addTrace('tool', `TOOL · ${(e.tool || '').toUpperCase()}`, e.message);
+          // Mark testing hyp
+          for (const [id, info] of Object.entries(hypMap)) {
+            const card = document.getElementById(`hyp-${id}`);
+            if (card && !card.classList.contains('rejected') && !card.classList.contains('confirmed')) {
+              updateHypStatus(parseInt(id), 'testing', null, null);
+              currentTestingId = id;
+              break;
+            }
+          }
+          break;
+
+        case 'tool_result':
+          addTrace('result', `RESULT · ${(e.tool || '').toUpperCase()}`,
+            `Received ${countEntries(e.data)} entries`, e.data);
+          break;
+
+        case 'hypothesis_rejected':
+          updateHypStatus(e.id, 'rejected', null, e.reason);
+          addTrace('reject', `✗ REJECTED · H${e.id}`, e.reason);
+          addTimelineEvent(new Date().toISOString(), `H${e.id} rejected`, true);
+          break;
+
+        case 'hypothesis_confirmed':
+          updateHypStatus(e.id, 'confirmed', e.confidence, e.evidence);
+          addTrace('confirm', `✓ CONFIRMED · H${e.id} · ${e.confidence}%`, e.evidence);
+          addTimelineEvent(new Date().toISOString(), `Root cause confirmed`, false);
+          setConfidenceMeter(e.confidence);
+          break;
+
+        case 'confidence_low':
+          addConfidenceWarning(e.confidence, e.message);
+          addTrace('flag', `CONFIDENCE LOW · ${e.confidence}%`, e.message);
+          break;
+
+        case 'governance_gate':
+          governanceData = e;
+          showGovernanceGate(e);
+          break;
+
+        case 'flagged_for_review':
+          setStateBadge('FLAGGED');
+          pmStatusEl.textContent = 'Flagged';
+          addTrace('flag', 'FLAGGED FOR REVIEW',
+            `Confidence ${e.confidence}% — insufficient. Human review required.`);
+          break;
+
+        case 'postmortem':
+          renderPostmortem(e.data);
+          setStateBadge('COMPLETE');
+          addTrace('confirm', 'POST-MORTEM GENERATED', 'Report complete. Investigation closed.');
+          stopTimer();
+          setButtons(false);
+          setTimeout(() => webhookBanner.classList.remove('visible'), 4000);
+          break;
+
+        case 'error':
+          addTrace('reject', 'ERROR', e.message);
+          setButtons(false); stopTimer();
+          break;
+
+        case 'done':
+          stopTimer(); setButtons(false);
+          break;
       }
-    } catch (err) {
-      console.error('Parse error:', err, msg.data);
     }
-  };
 
-  evtSource.onerror = () => {
-    addTrace('reject', 'CONNECTION ERROR', 'Lost connection to investigation stream.');
-    evtSource.close();
-    evtSource = null;
-    setButtons(false);
-    stopTimer();
-    investigationActive = false;
-  };
-}
+    function countEntries(data) {
+      if (!data) return 0;
+      for (const key of ['entries', 'datapoints', 'commits', 'messages', 'alerts']) {
+        if (Array.isArray(data[key])) return data[key].length;
+      }
+      return data.count ?? 0;
+    }
 
-function setButtons(investigating) {
-  btnInvestigate.disabled = investigating;
-  btnRandom.disabled = investigating;
-  btnInvestigate.textContent = investigating
-    ? '⧖ Investigating...'
-    : 'Investigate';
-}
+    // ── Investigation runner ───────────────────────────────────────────────────
+    function startInvestigation(incidentId) {
+      if (evtSource) { evtSource.close(); evtSource = null; }
+      stopTimer();
+      clearPanels();
+      setStateBadge('INGEST');
+      setButtons(true);
+      startTimer();
+      investigationActive = true;
 
-// ── Button handlers ───────────────────────────────────────────────────────
-btnInvestigate.addEventListener('click', () => {
-  const id = selectEl.value;
-  if (!id) { alert('Please select an incident first.'); return; }
-  startInvestigation(id);
-});
+      let url = `/investigate?incident_id=${encodeURIComponent(incidentId)}`;
+      if (screenshotB64) {
+        url += `&screenshot_b64=${encodeURIComponent(screenshotB64)}&screenshot_mime=${encodeURIComponent(screenshotMime)}`;
+      }
 
-btnRandom.addEventListener('click', async () => {
-  try {
-    const resp = await fetch('/incidents/random');
-    const data = await resp.json();
-    selectEl.value = data.id;
-    startInvestigation(data.id);
-  } catch (err) {
-    console.error('Failed to load random incident:', err);
-  }
-});
+      evtSource = new EventSource(url);
+      evtSource.onmessage = msg => {
+        try {
+          const parsed = JSON.parse(msg.data);
+          handleEvent(parsed);
+          if (parsed.type === 'done') {
+            evtSource.close(); evtSource = null; investigationActive = false;
+          }
+        } catch (err) { console.error('Parse error:', err, msg.data); }
+      };
+      evtSource.onerror = () => {
+        addTrace('reject', 'CONNECTION ERROR', 'Lost connection to investigation stream.');
+        evtSource.close(); evtSource = null; setButtons(false); stopTimer(); investigationActive = false;
+      };
+    }
 
-// ── Utility ───────────────────────────────────────────────────────────────
-function escHtml(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-</script>
+    function setButtons(investigating) {
+      btnInvestigate.disabled = investigating;
+      btnRandom.disabled = investigating;
+      btnInvestigate.textContent = investigating ? '⧖ Investigating...' : 'Investigate';
+    }
+
+    // ── Button handlers ────────────────────────────────────────────────────────
+    btnInvestigate.addEventListener('click', () => {
+      const id = selectEl.value;
+      if (!id) { alert('Please select an incident first.'); return; }
+      startInvestigation(id);
+    });
+
+    btnRandom.addEventListener('click', async () => {
+      try {
+        const resp = await fetch('/incidents/random');
+        const data = await resp.json();
+        selectEl.value = data.id;
+        startInvestigation(data.id);
+      } catch (err) { console.error('Failed to load random incident:', err); }
+    });
+
+    // ── Keyboard shortcuts ─────────────────────────────────────────────────────
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      if (e.code === 'Space' && !investigationActive) {
+        e.preventDefault();
+        btnRandom.click();
+      }
+      if (e.key === '1') selectEl.value = 'incident_a';
+      if (e.key === '2') selectEl.value = 'incident_b';
+      if (e.key === '3') selectEl.value = 'incident_c';
+      if (e.key === '4') selectEl.value = 'incident_d';
+      if (e.key === '5') selectEl.value = 'incident_e';
+    });
+
+    // ── Generate Incident Modal ────────────────────────────────────────────────
+    btnGenerate.addEventListener('click', () => generateModal.classList.add('visible'));
+    btnGenCancel.addEventListener('click', () => generateModal.classList.remove('visible'));
+
+    btnGenSubmit.addEventListener('click', async () => {
+      const service = genService.value.trim() || 'api-service';
+      const type = genType.value;
+      const severity = genSeverity.value;
+
+      genStatus.style.display = 'block';
+      genStatus.textContent = '⧖ Generating incident with AI...';
+      btnGenSubmit.disabled = true;
+
+      try {
+        const resp = await fetch('/generate-incident', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ service_name: service, incident_type: type, severity }),
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        const data = await resp.json();
+        genStatus.textContent = `✓ Created ${data.incident_id} — loading...`;
+
+        // Reload incident list and start investigation
+        await new Promise(r => setTimeout(r, 600));
+        generateModal.classList.remove('visible');
+
+        // Add option to select if not exists
+        if (!document.querySelector(`option[value="${data.incident_id}"]`)) {
+          const opt = document.createElement('option');
+          opt.value = data.incident_id;
+          opt.textContent = `Generated · ${service} · ${type} · ${severity}`;
+          selectEl.appendChild(opt);
+        }
+        selectEl.value = data.incident_id;
+        startInvestigation(data.incident_id);
+      } catch (err) {
+        genStatus.textContent = `Error: ${err.message}`;
+      } finally {
+        btnGenSubmit.disabled = false;
+      }
+    });
+
+    // ── Gap #4: Simulate PagerDuty Webhook ────────────────────────────────────
+    btnSimulateWebhook.addEventListener('click', async () => {
+      if (investigationActive) return;
+
+      const payload = {
+        event: 'incident.trigger',
+        incident: {
+          id: 'PT4KHLK',
+          title: 'High error rate on payment-service',
+          service: { name: 'payment-service' },
+          created_at: new Date().toISOString(),
+          urgency: 'high',
+          body: { details: '5xx error rate exceeded 15% threshold — automated alert fired' },
+        },
+      };
+
+      // Show the banner
+      webhookBanner.classList.add('visible');
+
+      // Show webhook arriving as a signal (visual feedback before investigation starts)
+      const wDiv = document.createElement('div');
+      wDiv.className = 'signal-entry level-error';
+      wDiv.innerHTML = `
+    <div class="signal-meta">
+      <span class="signal-source" style="color:var(--red)">⚡ PagerDuty Webhook</span>
+      <span class="signal-time">${new Date().toISOString().slice(11, 19)}Z</span>
+    </div>
+    <div class="signal-msg">INCOMING: ${escHtml(payload.incident.title)} (ID: ${escHtml(payload.incident.id)})</div>
+    <div style="font-size:9px;color:var(--text-muted);margin-top:2px">${escHtml(payload.incident.body.details)}</div>
+  `;
+      if (signalFeed.querySelector('.empty-state')) {
+        signalFeed.innerHTML = '';
+      }
+      signalFeed.appendChild(wDiv);
+      signalCount++;
+      signalCountEl.textContent = `${signalCount} signal${signalCount !== 1 ? 's' : ''}`;
+      setStateBadge('WEBHOOK');
+
+      try {
+        const resp = await fetch('/webhook/pagerduty', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        const data = await resp.json();
+
+        // Auto-select and auto-trigger — no user click required
+        selectEl.value = data.matched_incident_id;
+        await new Promise(r => setTimeout(r, 600)); // brief pause so signal appears
+        startInvestigation(data.matched_incident_id);
+      } catch (err) {
+        addTrace('reject', 'WEBHOOK ERROR', err.message);
+        webhookBanner.classList.remove('visible');
+      }
+    });
+  </script>
 </body>
+
 </html>

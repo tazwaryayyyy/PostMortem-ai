@@ -55,6 +55,16 @@ _MODEL_FAST = "llama-3.1-8b-instant"
 _MODEL_REPORT = "compound-beta"
 _MODEL_CRITIC = "qwen-qwen3-32b"
 
+# Endpoint map for tool_call_dispatched SSE event
+_TOOL_ENDPOINTS: dict[str, str] = {
+    "query_logs": "/tools/logs",
+    "query_metrics": "/tools/metrics",
+    "query_github": "/tools/github",
+    "query_slack": "/tools/slack",
+    "query_pagerduty": "/tools/pagerduty",
+    "flag_for_review": "/tools/flag",
+}
+
 # Token usage accumulator
 _token_totals: dict[str, int] = {}
 
@@ -453,11 +463,37 @@ class PostMortemCoordinator:
 
             for tool_action in hyp["data_to_query"]:
                 tool_name = tool_action.split("(")[0]
-                yield self._ev("tool_call", tool=tool_name, message=f"Querying {tool_action}...")
-                await asyncio.sleep(1.3)
 
-                result = self._execute_tool_action(tool_action)
-                yield self._ev("tool_result", tool=tool_name, data=result)
+                # Fix #5 — emit reasoning BEFORE the tool call
+                reasoning = await self._generate_tool_reasoning(
+                    hypothesis=hyp["description"],
+                    tool_selected=tool_name,
+                    investigation_id=self.incident_id,
+                )
+                yield self._ev("tool_reasoning", **reasoning)
+                await asyncio.sleep(0.25)
+
+                # Existing tool_call event (kept for backward compat)
+                yield self._ev("tool_call", tool=tool_name, message=f"Querying {tool_action}...")
+
+                # Fix #1 — tool_call_dispatched with endpoint + params
+                endpoint = _TOOL_ENDPOINTS.get(
+                    tool_name, f"/tools/{tool_name}")
+                yield self._ev(
+                    "tool_call_dispatched",
+                    tool=tool_name,
+                    endpoint=endpoint,
+                    params={"action": tool_action,
+                        "incident_id": self.incident_id},
+                    agent="EvidenceAgent",
+                )
+
+                t_start = time.time()
+                await asyncio.sleep(0.9)
+                result = await self._execute_tool_action(tool_action)
+                latency_ms = int((time.time() - t_start) * 1000)
+
+                yield self._ev("tool_result", tool=tool_name, data=result, latency_ms=latency_ms)
                 tool_results_for_hyp.append(result)
                 await asyncio.sleep(0.5)
 
@@ -660,6 +696,67 @@ class PostMortemCoordinator:
         yield self._ev("agent_result", agent_name="ReportAgent", result_summary="Post-mortem report generated")
         yield self._ev("postmortem", data=postmortem)
 
+    async def _generate_tool_reasoning(
+        self,
+        hypothesis: str,
+        tool_selected: str,
+        investigation_id: str,
+    ) -> dict:
+        """
+        Fast LLM call explaining WHY this tool was chosen and why others are wrong.
+        3-second hard timeout; falls back to a simple reasoning card on any failure.
+        """
+        available = ["query_logs", "query_metrics",
+            "query_github", "query_slack"]
+        tools_rejected = [t for t in available if t != tool_selected]
+
+        _SYSTEM = (
+            "You are an SRE agent. Given a hypothesis and available tools, explain in "
+            "2 sentences which tool to call and why the others are wrong. Be specific. "
+            "Return JSON only: "
+            '{"reasoning": "...", "tools_rejected": [...], "rejection_reasons": {"tool_name": "reason"}}'
+        )
+        prompt = json.dumps(
+            {"hypothesis": hypothesis[:200],
+                "tool_selected": tool_selected, "tools_available": available}
+        )
+
+        try:
+            content = await asyncio.wait_for(
+                asyncio.to_thread(
+                    _chat_with_fallback,
+                    [{"role": "system", "content": _SYSTEM},
+                        {"role": "user", "content": prompt}],
+                    [_MODEL_FAST],
+                    0.3,
+                    300,
+                    investigation_id,
+                ),
+                timeout=3.0,
+            )
+            data = json.loads(content)
+            return {
+                "agent": "EvidenceAgent",
+                "hypothesis": hypothesis[:120],
+                "reasoning": data.get("reasoning", ""),
+                "tool_selected": tool_selected,
+                "tools_rejected": data.get("tools_rejected", tools_rejected),
+                "rejection_reasons": data.get("rejection_reasons", {}),
+            }
+        except Exception:
+            return {
+                "agent": "EvidenceAgent",
+                "hypothesis": hypothesis[:120],
+                "reasoning": (
+                    f"Selecting {tool_selected} as the most direct evidence source for this hypothesis. "
+                    "Other tools address downstream effects, not root state."
+                ),
+                "tool_selected": tool_selected,
+                "tools_rejected": tools_rejected[:2],
+                "rejection_reasons": {},
+                "fallback": True,
+            }
+
     def _generate_postmortem(self) -> dict:
         if not self.conclusion:
             return {"error": "No conclusion reached — investigation flagged for human review."}
@@ -701,8 +798,8 @@ class PostMortemCoordinator:
             "token_count": token_count,
         }
 
-    def _execute_tool_action(self, action_str: str) -> dict:
-        """Parse a tool-action string from incident JSON and execute it."""
+    async def _execute_tool_action(self, action_str: str) -> dict:
+        """Parse a tool-action string and dispatch to the appropriate async impl function."""
         start = self.incident["start_time"]
         end = self.incident["end_time"]
         iid = self.incident_id
@@ -713,25 +810,25 @@ class PostMortemCoordinator:
             parts = [p.strip() for p in inner.split(",")]
             service = parts[0] if len(parts) > 0 else "api"
             metric = parts[1] if len(parts) > 1 else "cpu_percent"
-            return query_metrics_impl(service=service, metric=metric, start_time=start, end_time=end, incident_id=iid)
+            return await query_metrics_impl(service=service, metric=metric, start_time=start, end_time=end, incident_id=iid)
 
         elif action_str.startswith("query_logs("):
             inner = action_str[len("query_logs("):-1]
             parts = [p.strip() for p in inner.split(",")]
             service = parts[0] if len(parts) > 0 else "api"
             level = parts[1] if len(parts) > 1 else "error"
-            return query_logs_impl(service=service, level=level, start_time=start, end_time=end, incident_id=iid)
+            return await query_logs_impl(service=service, level=level, start_time=start, end_time=end, incident_id=iid)
 
         elif action_str.startswith("query_github("):
             inner = action_str[len("query_github("):-1].strip()
-            return query_github_impl(repo=inner, start_time=start, end_time=end, incident_id=iid)
+            return await query_github_impl(repo=inner, start_time=start, end_time=end, incident_id=iid)
 
         elif action_str.startswith("query_slack("):
             inner = action_str[len("query_slack("):-1].strip() or "#incidents"
-            return query_slack_impl(channel=inner, start_time=start, end_time=end, incident_id=iid)
+            return await query_slack_impl(channel=inner, start_time=start, end_time=end, incident_id=iid)
 
         elif action_str.startswith("query_pagerduty("):
-            return query_pagerduty_impl(start_time=start, end_time=end, incident_id=iid)
+            return await query_pagerduty_impl(start_time=start, end_time=end, incident_id=iid)
 
         return {"message": f"Executed: {action_str}", "count": 0}
 

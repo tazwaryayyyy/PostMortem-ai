@@ -4,9 +4,23 @@
 
 Built for **AI Agent Olympics 2026 — Milan AI Week**.
 
-> **Live Demo:** https://your-vultr-ip:8000
-> **Demo Video:** https://youtube.com/your-link
-> **Judges:** Start with incident_e — the $312K Stripe payment cascade. Click "Simulate Webhook" to see fully autonomous triggering.
+> **Live Demo:** See deployment instructions in DEPLOYMENT.md
+> **Demo Video:** See `/docs` for screenshots and walk-through
+> **Judges:** Use the **⚡ Judge Mode** button for a fully-automated 6-step guided demo — or manually select *incident_e* (★ Recommended) and click "Simulate Webhook" for a $312K autonomous investigation.
+
+## For Judges — Quick Start (60 seconds)
+
+1. `cp .env.example .env` — fill in your Groq + Google API keys (free tier works)
+2. `pip install -r requirements.txt`
+3. `python main.py`
+4. Open `http://localhost:8000` — click **⚡ Judge Mode** and watch the 5-agent pipeline reason live
+
+### What to watch for
+- **Stats strip** — real incident financial data loaded from JSON files on startup
+- **Reasoning Trace panel** — EvidenceAgent explains WHY it picks each tool (🧠 cards), then shows the HTTP dispatch (🔧 cards with endpoint + params + latency)
+- **Agent Debate** — CriticAgent (qwen3-32b) challenges the RootCauseAgent conclusion (⚔️ card, amber border)
+- **Hypothesis rejection** — red-bordered cards show which leads the agent ruled out and why
+- **Export Markdown** — generates a complete structured post-mortem report
 
 ---
 

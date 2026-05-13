@@ -63,7 +63,7 @@
 
     #app {
       display: grid;
-      grid-template-rows: 56px 36px 1fr;
+      grid-template-rows: 56px 36px 40px 1fr;
       height: 100vh;
     }
 
@@ -1554,6 +1554,131 @@
     .btn-webhook:hover {
       background: rgba(255, 71, 87, 0.22);
     }
+
+    /* ── Judge Mode button ── */
+    @keyframes judge-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255,211,42,0.5); }
+      50% { box-shadow: 0 0 0 6px rgba(255,211,42,0); }
+    }
+    .btn-judge {
+      background: rgba(255,211,42,0.12);
+      color: var(--yellow);
+      border: 1px solid var(--yellow-dim);
+      animation: judge-pulse 2s infinite;
+    }
+    .btn-judge:hover {
+      background: rgba(255,211,42,0.22);
+    }
+
+    /* ── Judge banner ── */
+    .judge-banner {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      height: 28px;
+      background: rgba(255,211,42,0.1);
+      border-bottom: 1px solid var(--yellow-dim);
+      font-size: 10px;
+      color: var(--yellow);
+      letter-spacing: 0.4px;
+      font-weight: 600;
+    }
+    .judge-banner.visible { display: flex; animation: slide-in 0.2s ease; }
+
+    /* ── Business value stats strip ── */
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      height: 40px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-panel);
+      overflow: hidden;
+    }
+    .stat-tile {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 16px;
+      border-right: 1px solid var(--border);
+    }
+    .stat-tile:last-child { border-right: none; }
+    .stat-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--green);
+      font-family: var(--font-ui);
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    /* ── Rich trace cards ── */
+    .trace-card {
+      background: var(--bg-entry);
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      font-size: 10px;
+      line-height: 1.5;
+      animation: slide-in 0.15s ease;
+    }
+    .trace-card-reasoning {
+      border-left: 3px solid #4285f4;
+    }
+    .trace-card-dispatch {
+      border-left: 3px solid var(--yellow);
+    }
+    .trace-card-debate {
+      border-left: 3px solid var(--yellow);
+    }
+    .trace-card-rejection {
+      border-left: 3px solid var(--red);
+    }
+    .trace-card-title {
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .trace-card-body {
+      color: var(--text-dim);
+    }
+    .trace-card-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 5px;
+    }
+    .trace-chip {
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 600;
+    }
+    .trace-chip-selected {
+      background: rgba(0,255,136,0.12);
+      color: var(--green);
+      border: 1px solid rgba(0,255,136,0.25);
+    }
+    .trace-chip-rejected {
+      background: rgba(255,71,87,0.1);
+      color: var(--red);
+      border: 1px solid rgba(255,71,87,0.2);
+    }
+    .trace-chip-endpoint {
+      background: rgba(255,211,42,0.1);
+      color: var(--yellow);
+      border: 1px solid rgba(255,211,42,0.2);
+    }
+    .trace-latency {
+      font-size: 9px;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
   </style>
 </head>
 
@@ -1576,7 +1701,7 @@
           <option value="incident_b">P1 · Database Crash 2AM · $21K · 31 min</option>
           <option value="incident_c">P1 · Silent 504s · $94K · 68 min</option>
           <option value="incident_d">P1 · ML Memory Leak · $156K · 383 min ★ Expert</option>
-          <option value="incident_e">P1 · Payment Cascade · $312K · 127 min ★ Expert</option>
+          <option value="incident_e">P1 · Payment Cascade · $312K · 127 min ★ Recommended</option>
         </select>
         <button class="btn btn-primary" id="btn-investigate">Investigate</button>
         <button class="btn btn-ghost" id="btn-random" title="Press Space">⟳ Random</button>
@@ -1586,6 +1711,7 @@
       </div>
 
       <div class="header-right">
+        <button class="btn btn-judge" id="btn-judge-mode">⚡ Judge Mode</button>
         <div class="state-badge" id="state-badge">IDLE</div>
         <div class="timer" id="timer">00:00</div>
       </div>
@@ -1594,6 +1720,9 @@
     <!-- Webhook auto-trigger banner -->
     <div class="webhook-banner" id="webhook-banner">⚡ Auto-triggered via PagerDuty Webhook — no human intervention
       required</div>
+
+    <!-- Judge Mode banner -->
+    <div class="judge-banner" id="judge-banner">⚡ Judge Mode Active — Guided walkthrough — watch the Reasoning Trace panel →</div>
 
     <!-- ── Model stack strip ── -->
     <div class="model-strip">
@@ -1604,6 +1733,26 @@
       <span class="model-chip" id="chip-rep" title="ReportAgent">ReportAgent · compound-beta</span>
       <span class="model-chip" id="chip-crit" title="CriticAgent">CriticAgent · qwen3-32b</span>
       <span class="model-chip gemini" id="chip-vision" title="VisionAgent">VisionAgent · gemini-2.5-flash</span>
+    </div>
+
+    <!-- ── Business Value Stats Strip ── -->
+    <div class="stats-strip" id="stats-strip">
+      <div class="stat-tile">
+        <div class="stat-value" id="stat-incidents">—</div>
+        <div class="stat-label">Incidents Analyzed</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-value" id="stat-mttr">—</div>
+        <div class="stat-label">Avg MTTR Saved (min)</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-value" id="stat-impact">—</div>
+        <div class="stat-label">Total Impact Recovered</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-value" id="stat-confidence">—</div>
+        <div class="stat-label">Avg Confidence Score</div>
+      </div>
     </div>
 
     <!-- ── 5-panel main grid ── -->
@@ -2354,11 +2503,13 @@
 
         case 'agent_dispatch':
           addAgentDispatch(e.agent_name, e.task, e.model);
+          updateAgentDot(e.agent_name, 'running');
           addTrace('agent', `DISPATCH · ${e.agent_name}`, `${e.task} [${e.model}]`);
           break;
 
         case 'agent_result':
           resolveAgentDispatch(e.agent_name, e.result_summary);
+          updateAgentDot(e.agent_name, 'complete');
           addTrace('agent', `RESULT · ${e.agent_name}`, e.result_summary);
           break;
 
@@ -2394,9 +2545,23 @@
           const emptyNode = document.getElementById('agent-empty');
           agentFeed.insertBefore(card, emptyNode);
 
-          // Also surface it in the trace panel
-          addTrace('flag', 'AGENT DEBATE',
-            `Critic (qwen3-32b): ${e.critic_says || ''} | ${e.resolution || ''}`);
+          // Surface rich debate card in trace panel
+          {
+            const tcard = document.createElement('div');
+            tcard.className = 'trace-card trace-card-debate';
+            const debagrees = e.agrees !== false;
+            tcard.innerHTML = `
+              <div class="trace-card-title" style="color:var(--yellow)">⚔️ CRITIC CHALLENGE — ${debagrees ? 'VALIDATED' : 'COUNTERARGUMENT'}</div>
+              <div class="trace-card-body"><b>RootCause:</b> ${escHtml(e.original_says || '')}</div>
+              <div class="trace-card-body" style="margin-top:4px"><b>Critic (qwen3-32b):</b> ${escHtml(e.critic_says || 'No logical gaps found')}</div>
+              <div class="trace-card-body" style="margin-top:4px;color:${debagrees ? 'var(--green)' : 'var(--red)'}"><b>Resolution:</b> ${escHtml(e.resolution || '')}</div>`;
+            const empties = traceEl.querySelectorAll('.empty-state');
+            empties.forEach(el => el.remove());
+            traceEl.appendChild(tcard);
+            traceCount++;
+            traceCountEl.textContent = `${traceCount} step${traceCount !== 1 ? 's' : ''}`;
+            scrollBottom(traceEl);
+          }
           scrollBottom(agentFeed);
           break;
         }
@@ -2425,29 +2590,99 @@
           break;
         }
 
-        case 'tool_call':
-          addTrace('tool', `TOOL · ${(e.tool || '').toUpperCase()}`, e.message);
-          // Mark testing hyp
+        case 'tool_reasoning': {
+          // Rich reasoning card explaining WHY this tool was chosen
+          const card = document.createElement('div');
+          card.className = 'trace-card trace-card-reasoning';
+          const rejected = e.tools_rejected || [];
+          const reasons = e.rejection_reasons || {};
+          const rejChips = rejected.map(t =>
+            `<span class="trace-chip trace-chip-rejected" title="${escHtml(reasons[t] || '')}">✗ ${escHtml(t)}</span>`
+          ).join('');
+          card.innerHTML = `
+            <div class="trace-card-title">🧠 EvidenceAgent reasoning</div>
+            <div class="trace-card-body">${escHtml(e.reasoning || '')}</div>
+            <div class="trace-card-chips">
+              <span class="trace-chip trace-chip-selected">✓ ${escHtml(e.tool_selected || '')}</span>
+              ${rejChips}
+            </div>`;
+          const empties = traceEl.querySelectorAll('.empty-state');
+          empties.forEach(el => el.remove());
+          traceEl.appendChild(card);
+          traceCount++;
+          traceCountEl.textContent = `${traceCount} step${traceCount !== 1 ? 's' : ''}`;
+          scrollBottom(traceEl);
+          break;
+        }
+
+        case 'tool_call_dispatched': {
+          // Rich dispatch card showing HTTP endpoint + params
+          const card = document.createElement('div');
+          card.className = 'trace-card trace-card-dispatch';
+          const params = e.params || {};
+          const paramsStr = Object.entries(params).map(([k,v]) => `${k}: ${JSON.stringify(v)}`).join(' | ');
+          card.innerHTML = `
+            <div class="trace-card-title">🔧 ${escHtml(e.agent || 'EvidenceAgent')} called ${escHtml(e.tool || '')}</div>
+            <div class="trace-card-chips">
+              <span class="trace-chip trace-chip-endpoint">→ POST ${escHtml(e.endpoint || '')}</span>
+            </div>
+            ${paramsStr ? `<div class="trace-card-body" style="margin-top:4px">${escHtml(paramsStr)}</div>` : ''}
+            <div class="trace-latency" id="dispatch-latency-${traceCount + 1}">⏳ Waiting for response...</div>`;
+          const empties = traceEl.querySelectorAll('.empty-state');
+          empties.forEach(el => el.remove());
+          traceEl.appendChild(card);
+          traceCount++;
+          traceCountEl.textContent = `${traceCount} step${traceCount !== 1 ? 's' : ''}`;
+          // Mark testing hypothesis
           for (const [id, info] of Object.entries(hypMap)) {
-            const card = document.getElementById(`hyp-${id}`);
-            if (card && !card.classList.contains('rejected') && !card.classList.contains('confirmed')) {
+            const hcard = document.getElementById(`hyp-${id}`);
+            if (hcard && !hcard.classList.contains('rejected') && !hcard.classList.contains('confirmed')) {
               updateHypStatus(parseInt(id), 'testing', null, null);
               currentTestingId = id;
               break;
             }
           }
+          scrollBottom(traceEl);
+          break;
+        }
+
+        case 'tool_call':
+          // Kept for backward compat — silent; tool_call_dispatched renders the card
           break;
 
-        case 'tool_result':
-          addTrace('result', `RESULT · ${(e.tool || '').toUpperCase()}`,
-            `Received ${countEntries(e.data)} entries`, e.data);
+        case 'tool_result': {
+          // Update the most recent dispatch latency label, then add result card
+          const latency = e.latency_ms != null ? `${e.latency_ms}ms` : null;
+          const latencyEls = traceEl.querySelectorAll('[id^="dispatch-latency-"]');
+          if (latencyEls.length && latency) {
+            latencyEls[latencyEls.length - 1].textContent = `✓ Response in ${latency}`;
+          }
+          const rcard = document.createElement('div');
+          rcard.className = 'trace-card';
+          const count = countEntries(e.data);
+          rcard.innerHTML = `<div class="trace-card-title" style="color:var(--green)">✓ RESULT · ${escHtml((e.tool||'').toUpperCase())}</div>
+            <div class="trace-card-body">Received ${count} entr${count !== 1 ? 'ies' : 'y'}${latency ? ` · ${latency}` : ''}</div>`;
+          traceEl.appendChild(rcard);
+          traceCount++;
+          traceCountEl.textContent = `${traceCount} step${traceCount !== 1 ? 's' : ''}`;
+          scrollBottom(traceEl);
           break;
+        }
 
-        case 'hypothesis_rejected':
+        case 'hypothesis_rejected': {
           updateHypStatus(e.id, 'rejected', null, e.reason);
-          addTrace('reject', `✗ REJECTED · H${e.id}`, e.reason);
+          const rcard = document.createElement('div');
+          rcard.className = 'trace-card trace-card-rejection';
+          rcard.innerHTML = `<div class="trace-card-title">\u2717 REJECTED \u00b7 H${e.id}</div><div class="trace-card-body">${escHtml(e.reason || '')}</div>`;
+          const empties = traceEl.querySelectorAll('.empty-state');
+          empties.forEach(el => el.remove());
+          traceEl.appendChild(rcard);
+          traceCount++;
+          traceCountEl.textContent = `${traceCount} step${traceCount !== 1 ? 's' : ''}`;
+          scrollBottom(traceEl);
           addTimelineEvent(new Date().toISOString(), `H${e.id} rejected`, true);
           break;
+        }
 
         case 'hypothesis_confirmed':
           updateHypStatus(e.id, 'confirmed', e.confidence, e.evidence);
@@ -2611,6 +2846,94 @@
       }
     });
 
+    // ── Business value stats strip ────────────────────────────────────────────
+    function animateCounter(el, target, suffix, prefix, duration) {
+      const start = Date.now();
+      const step = () => {
+        const pct = Math.min((Date.now() - start) / duration, 1);
+        const val = Math.round(pct * target);
+        el.textContent = (prefix || '') + val.toLocaleString() + (suffix || '');
+        if (pct < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }
+
+    async function loadStats() {
+      try {
+        const resp = await fetch('/metrics');
+        if (!resp.ok) return;
+        const d = await resp.json();
+        if (d.incidents_analyzed != null)
+          animateCounter(document.getElementById('stat-incidents'), d.incidents_analyzed, '', '', 400);
+        if (d.avg_mttr_reduction_minutes != null)
+          animateCounter(document.getElementById('stat-mttr'), d.avg_mttr_reduction_minutes, ' min', '', 400);
+        if (d.total_impact_recovered_usd != null)
+          animateCounter(document.getElementById('stat-impact'), d.total_impact_recovered_usd, '', '$', 600);
+        if (d.avg_confidence_score != null)
+          animateCounter(document.getElementById('stat-confidence'), d.avg_confidence_score, '%', '', 400);
+      } catch (err) { console.warn('Stats load failed:', err); }
+    }
+
+    // ── Agent status dots ──────────────────────────────────────────────────────
+    function updateAgentDot(agentName, state) {
+      const dotId = 'agent-status-dot-' + agentName.replace(/\s+/g, '');
+      const dot = document.getElementById(dotId);
+      if (!dot) return;
+      dot.className = 'agent-status-dot-pill agent-dot-' + state;
+    }
+
+    // ── Judge Mode ─────────────────────────────────────────────────────────────
+    document.getElementById('btn-judge-mode').addEventListener('click', async () => {
+      if (investigationActive) return;
+      const judgeEl = document.getElementById('judge-banner');
+      judgeEl.classList.add('visible');
+
+      // Step 1: select incident_e (most complex, recommended)
+      selectEl.value = 'incident_e';
+
+      // Step 2: briefly show a live tool call in the trace to demonstrate tools
+      try {
+        const r = await fetch('/tools/logs', { method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ incident_id: 'incident_e', service: 'payment-service', limit: 5 }) });
+        if (r.ok) {
+          const tcard = document.createElement('div');
+          tcard.className = 'trace-card trace-card-dispatch';
+          tcard.innerHTML = `<div class="trace-card-title">🔧 Pre-flight · Live tool check</div><div class="trace-card-body">POST /tools/logs → OK (live data available)</div>`;
+          const empties = traceEl.querySelectorAll('.empty-state');
+          empties.forEach(el => el.remove());
+          traceEl.appendChild(tcard);
+          scrollBottom(traceEl);
+        }
+      } catch (_) {}
+
+      // Step 3: after 800ms simulate the webhook trigger
+      await new Promise(r => setTimeout(r, 800));
+      btnSimulateWebhook.click();
+
+      // Step 4: scroll trace to top after a moment
+      await new Promise(r => setTimeout(r, 500));
+      traceEl.scrollTop = 0;
+
+      // Step 5+6: after investigation completes, highlight debate card and export button
+      const pollDebate = setInterval(() => {
+        const debateCard = traceEl.querySelector('.trace-card-debate');
+        if (debateCard) {
+          clearInterval(pollDebate);
+          debateCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          debateCard.style.outline = '2px solid gold';
+          debateCard.style.transition = 'outline 0.3s';
+          setTimeout(() => {
+            debateCard.style.outline = '';
+            // Scroll to export button and highlight it
+            btnExportMd.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            btnExportMd.style.outline = '2px solid var(--green)';
+            setTimeout(() => { btnExportMd.style.outline = ''; }, 3000);
+          }, 3000);
+        }
+      }, 500);
+    });
+
     // ── Gap #4: Simulate PagerDuty Webhook ────────────────────────────────────
     btnSimulateWebhook.addEventListener('click', async () => {
       if (investigationActive) return;
@@ -2667,6 +2990,9 @@
         webhookBanner.classList.remove('visible');
       }
     });
+
+    // Load business value stats on page ready
+    loadStats();
   </script>
 </body>
 

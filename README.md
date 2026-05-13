@@ -1,10 +1,10 @@
-# PostMortem.ai ⚡
+# PostMortem.ai
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776ab?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Powered by Groq](https://img.shields.io/badge/Powered%20by-Groq-f55036?logo=thunderbird&logoColor=white)](https://groq.com)
-[![Vision: Gemini](https://img.shields.io/badge/Vision-Gemini%202.5%20Flash-4285f4?logo=google&logoColor=white)](https://ai.google.dev)
+[![Vision: Gemini](https://img.shields.io/badge/Vision-Gemini-4285f4?logo=google&logoColor=white)](https://ai.google.dev)
 [![Models: 5 Agents](https://img.shields.io/badge/Agents-5%20Specialist%20LLMs-8b5cf6)](agent.py)
 
 > The average incident sits uninvestigated for 2–4 hours.

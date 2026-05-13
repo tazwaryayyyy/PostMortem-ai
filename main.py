@@ -1,5 +1,5 @@
 ﻿"""
-PostMortem.ai — FastAPI backend v2.0
+PostMortem.ai — FastAPI backend
 =====================================
 Run locally:  uvicorn main:app --reload --port 8000
 Deploy Vultr: uvicorn main:app --host 0.0.0.0 --port 8000
@@ -10,6 +10,7 @@ import base64
 import json
 import os
 import random
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,6 +32,15 @@ from vision_agent import get_vision_agent
 
 load_dotenv()
 
+# Validate required credentials at startup — fail fast rather than on first request
+if not os.getenv("GROQ_API_KEY"):
+    print(
+        "ERROR: GROQ_API_KEY is not set. "
+        "Copy .env.example to .env and add your key before starting the server.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
 # Track app start time for uptime reporting
 _app_start_time = time.monotonic()
 
@@ -44,7 +54,7 @@ _investigation_semaphore = asyncio.Semaphore(_MAX_CONCURRENT)
 # ── FastAPI app ────────────────────────────────────────────────────────────
 app = FastAPI(
     title="PostMortem.ai",
-    version="2.0.0",
+    version="1.0.0",
     description="Autonomous multi-agent incident investigation platform.",
 )
 
@@ -179,7 +189,7 @@ async def investigate(
                     models_used = json.dumps(
                         postmortem_result.get("agent_models_used", {})
                     )
-                    save_investigation(
+                    await save_investigation(
                         incident_id=incident_id,
                         investigation_start=investigation_start,
                         investigation_end=investigation_end,
@@ -220,7 +230,7 @@ async def upload_screenshot(file: UploadFile = File(...)):
     allowed_types = {"image/png", "image/jpeg", "image/jpg"}
     if file.content_type not in allowed_types:
         raise HTTPException(
-            status_code=400,
+            status_code=415,
             detail=f"Unsupported image type '{file.content_type}'. Use PNG or JPEG.",
         )
 

@@ -53,7 +53,7 @@ def init_db() -> None:
         conn.close()
 
 
-def save_investigation(
+async def save_investigation(
     incident_id: str,
     investigation_start: str,
     investigation_end: str,
@@ -69,33 +69,41 @@ def save_investigation(
 
     Returns the new row ID.
     All SQL uses parameterized queries — no string interpolation.
+    Serialized via asyncio.Lock to prevent concurrent write races.
+    SQLite work runs in a thread so the event loop is not blocked.
     """
-    conn = _get_connection()
-    try:
-        cursor = conn.execute(
-            """
-            INSERT INTO investigations
-                (incident_id, investigation_start, investigation_end,
-                 root_cause, confidence, agent_model_used, token_count,
-                 hypotheses_tested, hypotheses_rejected)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                incident_id,
-                investigation_start,
-                investigation_end,
-                root_cause,
-                confidence,
-                agent_model_used,
-                token_count,
-                hypotheses_tested,
-                hypotheses_rejected,
-            ),
-        )
-        conn.commit()
-        return cursor.lastrowid
-    finally:
-        conn.close()
+    params = (
+        incident_id,
+        investigation_start,
+        investigation_end,
+        root_cause,
+        confidence,
+        agent_model_used,
+        token_count,
+        hypotheses_tested,
+        hypotheses_rejected,
+    )
+
+    def _sync_write() -> int:
+        conn = _get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                INSERT INTO investigations
+                    (incident_id, investigation_start, investigation_end,
+                     root_cause, confidence, agent_model_used, token_count,
+                     hypotheses_tested, hypotheses_rejected)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                params,
+            )
+            conn.commit()
+            return cursor.lastrowid
+        finally:
+            conn.close()
+
+    async with _lock:
+        return await asyncio.to_thread(_sync_write)
 
 
 def get_history(limit: int = 20) -> list[dict]:

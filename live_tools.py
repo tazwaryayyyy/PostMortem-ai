@@ -13,12 +13,13 @@ Include in FastAPI app with:  app.include_router(router)
 
 import math
 import random
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 import json
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/tools", tags=["Live Tool APIs"])
@@ -56,20 +57,17 @@ class SlackRequest(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────
 
-def _load_incident(incident_id: str) -> dict:
-    """Load incident JSON by ID, fall back to incident_a."""
+def _load_incident(incident_id: str) -> dict | None:
+    """Load incident JSON by ID. Returns None if the incident file does not exist."""
     path = Path("incidents") / f"{incident_id}.json"
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
-    fallback = Path("incidents/incident_a.json")
-    if fallback.exists():
-        return json.loads(fallback.read_text(encoding="utf-8"))
-    return {}
+    return None
 
 
 def _gauss(val: float, pct: float = 0.03) -> float:
-    """Add ±pct Gaussian noise to a float value."""
-    return round(val + random.gauss(0, abs(val) * pct + 0.001), 3)
+    """Add ±pct Gaussian noise to a float value, clamped to >= 0."""
+    return round(max(0.0, val + random.gauss(0, abs(val) * pct + 0.001)), 3)
 
 
 def _percentile(data: list[float], p: float) -> float:
@@ -114,12 +112,16 @@ def query_logs(req: LogsRequest) -> dict:
     Filter incident logs by service and level, then:
     - Inject 1–2 synthetic live log lines stamped at now() with random request_id
     - Shuffle the combined list (simulates a live log aggregator response)
-    - Return query_time_ms drawn from a realistic 45–120 ms distribution
+    - Return query_time_ms measured from actual wall-clock time
 
     The response changes on every call — a judge watching the stream or network
     tab sees indistinguishable-from-real API behaviour.
     """
+    t0 = time.perf_counter()
     incident = _load_incident(req.incident_id)
+    if incident is None:
+        raise HTTPException(
+            status_code=404, detail=f"Incident '{req.incident_id}' not found")
     base_logs = [
         log for log in incident.get("signals", {}).get("logs", [])
         if log.get("service") == req.service and log.get("level") == req.level
@@ -153,7 +155,7 @@ def query_logs(req: LogsRequest) -> dict:
     return {
         "logs": combined,
         "total_count": len(combined),
-        "query_time_ms": random.randint(45, 120),
+        "query_time_ms": int((time.perf_counter() - t0) * 1000),
         "source": "live_tools_api",
         "incident_id": req.incident_id,
     }
@@ -173,7 +175,11 @@ def query_metrics(req: MetricsRequest) -> dict:
     - p50/p95/p99 computed server-side
     - anomaly_detected flag using 2-sigma rule
     """
+    t0 = time.perf_counter()
     incident = _load_incident(req.incident_id)
+    if incident is None:
+        raise HTTPException(
+            status_code=404, detail=f"Incident '{req.incident_id}' not found")
     raw = (
         incident.get("signals", {})
         .get("metrics", {})
@@ -200,7 +206,7 @@ def query_metrics(req: MetricsRequest) -> dict:
         "p95": _percentile(values, 95),
         "p99": _percentile(values, 99),
         "anomaly_detected": anomaly,
-        "query_time_ms": random.randint(80, 200),
+        "query_time_ms": int((time.perf_counter() - t0) * 1000),
         "source": "live_tools_api",
         "incident_id": req.incident_id,
     }
@@ -218,7 +224,11 @@ def query_github(req: GithubRequest) -> dict:
     - time_before_incident (e.g. '47 minutes before first alert')
     - high_risk flag for commits touching config / deploy / infra files
     """
+    t0 = time.perf_counter()
     incident = _load_incident(req.incident_id)
+    if incident is None:
+        raise HTTPException(
+            status_code=404, detail=f"Incident '{req.incident_id}' not found")
     commits = [
         c for c in incident.get("signals", {}).get("github", [])
         if c.get("repo") == req.repo
@@ -254,7 +264,7 @@ def query_github(req: GithubRequest) -> dict:
         "commits": annotated,
         "risk_commits": risk_commits,
         "deploy_count": len(annotated),
-        "query_time_ms": random.randint(60, 150),
+        "query_time_ms": int((time.perf_counter() - t0) * 1000),
         "source": "live_tools_api",
         "incident_id": req.incident_id,
     }
@@ -274,7 +284,11 @@ def query_slack(req: SlackRequest) -> dict:
     - escalation_minutes: time from first to last message
     - panic_score: fraction of messages that are alert signals
     """
+    t0 = time.perf_counter()
     incident = _load_incident(req.incident_id)
+    if incident is None:
+        raise HTTPException(
+            status_code=404, detail=f"Incident '{req.incident_id}' not found")
     messages = incident.get("signals", {}).get("slack", [])
     results = [m for m in messages if m.get("channel") == req.channel]
 
@@ -306,7 +320,7 @@ def query_slack(req: SlackRequest) -> dict:
         "messages": enriched,
         "escalation_minutes": escalation_minutes,
         "panic_score": panic_score,
-        "query_time_ms": random.randint(30, 90),
+        "query_time_ms": int((time.perf_counter() - t0) * 1000),
         "source": "live_tools_api",
         "incident_id": req.incident_id,
     }

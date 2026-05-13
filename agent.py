@@ -615,8 +615,9 @@ class PostMortemCoordinator:
                     "confirming_evidence": hyp["confirming_evidence"],
                     "confidence": confidence,
                 }
-                critic_result = self._critic_agent.run(
-                    root_cause_data, self.evidence, self.incident_id
+                critic_result = await asyncio.to_thread(
+                    self._critic_agent.run,
+                    root_cause_data, self.evidence, self.incident_id,
                 )
                 agrees = critic_result.get("agrees", True)
                 counterargs = critic_result.get("counterarguments", [])
@@ -825,7 +826,7 @@ class PostMortemCoordinator:
             metric = parts[1] if len(parts) > 1 else "cpu_percent"
             return await _post("/tools/metrics", {
                 "incident_id": iid, "service": service,
-                "metric_name": metric, "start_time": start, "end_time": end,
+                "metric": metric, "start_time": start, "end_time": end,
             })
 
         elif action_str.startswith("query_logs("):

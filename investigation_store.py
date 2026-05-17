@@ -180,9 +180,9 @@ def get_metrics_summary() -> dict[str, Any]:
             "min_confidence": dict(stats).get("min_confidence"),
             "max_confidence": dict(stats).get("max_confidence"),
             "confidence_distribution": {
-                "high_90_plus": dict(dist).get("high_90", 0),
-                "medium_80_89": dict(dist).get("med_80", 0),
-                "low_under_80": dict(dist).get("low_under80", 0),
+                "high_90_plus": dict(dist).get("high_90") or 0,
+                "medium_80_89": dict(dist).get("med_80") or 0,
+                "low_under_80": dict(dist).get("low_under80") or 0,
             },
             "top_incidents": [
                 {"incident_id": row["incident_id"],

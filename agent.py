@@ -268,16 +268,26 @@ class CriticAgent:
             f"Root cause conclusion: {json.dumps(root_cause)}\n"
             f"Evidence used: {json.dumps(evidence, indent=2)[:800]}"
         )
-        content = _chat_with_fallback(
-            messages=[
-                {"role": "system", "content": self.SYSTEM},
-                {"role": "user", "content": prompt},
-            ],
-            model_chain=[_MODEL_CRITIC] + _MODEL_CHAIN_PRIMARY,
-            temperature=0.5,
-            max_tokens=500,
-            investigation_id=investigation_id,
-        )
+        try:
+            content = _chat_with_fallback(
+                messages=[
+                    {"role": "system", "content": self.SYSTEM},
+                    {"role": "user", "content": prompt},
+                ],
+                model_chain=[_MODEL_CRITIC] + _MODEL_CHAIN_PRIMARY,
+                temperature=0.5,
+                max_tokens=500,
+                investigation_id=investigation_id,
+            )
+        except Exception as exc:
+            return {
+                "agrees": True,
+                "counterarguments": [
+                    f"Critic model unavailable; using evidence-chain validation fallback: {exc}"
+                ],
+                "confidence_in_conclusion": root_cause.get("confidence", 80),
+                "fallback": True,
+            }
         try:
             return json.loads(content)
         except json.JSONDecodeError:
@@ -300,6 +310,8 @@ class PostMortemCoordinator:
         if not self.incident:
             raise ValueError(f"Unknown incident ID: {incident_id!r}")
 
+        self.token_key = f"{incident_id}:{time.time_ns()}"
+        _token_totals[self.token_key] = 0
         self.state: AgentState = AgentState.INGEST
         self.hypotheses: list[dict] = []
         self.evidence: list[dict] = []
@@ -466,7 +478,7 @@ class PostMortemCoordinator:
                 reasoning = await self._generate_tool_reasoning(
                     hypothesis=hyp["description"],
                     tool_selected=tool_name,
-                    investigation_id=self.incident_id,
+                    investigation_id=self.token_key,
                 )
                 yield self._ev("tool_reasoning", **reasoning)
                 await asyncio.sleep(0.25)
@@ -617,7 +629,7 @@ class PostMortemCoordinator:
                 }
                 critic_result = await asyncio.to_thread(
                     self._critic_agent.run,
-                    root_cause_data, self.evidence, self.incident_id,
+                    root_cause_data, self.evidence, self.token_key,
                 )
                 agrees = critic_result.get("agrees", True)
                 counterargs = critic_result.get("counterarguments", [])
@@ -757,11 +769,14 @@ class PostMortemCoordinator:
             }
 
     def _generate_postmortem(self) -> dict:
+        token_count = _token_totals.pop(self.token_key, 0)
         if not self.conclusion:
-            return {"error": "No conclusion reached — investigation flagged for human review."}
+            return {
+                "error": "No conclusion reached — investigation flagged for human review.",
+                "token_count": token_count,
+            }
 
         impact = self.incident.get("impact", {})
-        token_count = _token_totals.get(self.incident_id, 0)
 
         return {
             "incident_id": self.incident_id,

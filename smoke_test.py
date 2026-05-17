@@ -7,6 +7,8 @@ os.environ.setdefault("GROQ_API_KEY", "dummy-smoke-key")
 os.environ.setdefault("GOOGLE_API_KEY", "dummy-smoke-key")
 
 from main import app  # noqa: E402
+import agent as agent_module  # noqa: E402
+from agent import CriticAgent  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 client = TestClient(app)
@@ -62,6 +64,55 @@ print(" ", r.json())
 check("status 200", r.status_code == 200)
 check("total_investigations present", "total_investigations" in r.json())
 check("confidence_distribution present", "confidence_distribution" in r.json())
+dist = r.json().get("confidence_distribution", {})
+check("empty high bucket is numeric", dist.get("high_90_plus") == 0)
+check("empty medium bucket is numeric", dist.get("medium_80_89") == 0)
+check("empty low bucket is numeric", dist.get("low_under_80") == 0)
+
+print("\n=== POST /tools/slack ===")
+r = client.post("/tools/slack",
+                json={"channel": "#incidents", "incident_id": "incident_a"})
+body = r.json()
+print(" ", body)
+check("status 200", r.status_code == 200)
+check("messages returned", len(body.get("messages", [])) >= 2)
+check("query_time_ms numeric", isinstance(body.get("query_time_ms"), int))
+
+print("\n=== POST /tools/metrics ===")
+r = client.post("/tools/metrics",
+                json={"service": "auth", "metric": "latency_p99", "incident_id": "incident_a"})
+body = r.json()
+print(" ", body)
+check("status 200", r.status_code == 200)
+check("datapoints returned", len(body.get("datapoints", [])) >= 2)
+check("percentiles present", "p95" in body and "p99" in body)
+
+print("\n=== POST /tools/logs ===")
+r = client.post("/tools/logs",
+                json={"service": "auth", "level": "error", "incident_id": "incident_a"})
+body = r.json()
+print(" ", body)
+check("status 200", r.status_code == 200)
+check("logs returned", body.get("total_count", 0) >= 1)
+
+print("\n=== POST /tools/github ===")
+r = client.post("/tools/github",
+                json={"repo": "api-service", "incident_id": "incident_a"})
+body = r.json()
+print(" ", body)
+check("status 200", r.status_code == 200)
+check("commits returned", len(body.get("commits", [])) >= 1)
+
+print("\n=== Critic fallback ===")
+original_chat = agent_module._chat_with_fallback
+try:
+    agent_module._chat_with_fallback = lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom"))
+    critic_result = CriticAgent().run({"root_cause": "x", "confidence": 88}, [], "smoke")
+    print(" ", critic_result)
+    check("critic fallback agrees", critic_result.get("agrees") is True)
+    check("critic fallback marked", critic_result.get("fallback") is True)
+finally:
+    agent_module._chat_with_fallback = original_chat
 
 print("\n=== POST /webhook/pagerduty ===")
 payload = {

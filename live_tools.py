@@ -284,7 +284,7 @@ def query_slack(req: SlackRequest) -> dict:
     - escalation_minutes: time from first to last message
     - panic_score: fraction of messages that are alert signals
     """
-    t0 = time.perf_counter()
+    started_at = time.perf_counter()
     incident = _load_incident(req.incident_id)
     if incident is None:
         raise HTTPException(
@@ -304,11 +304,13 @@ def query_slack(req: SlackRequest) -> dict:
     panic_score = 0.0
     if len(enriched) >= 2:
         try:
-            t0 = datetime.fromisoformat(
+            first_message_at = datetime.fromisoformat(
                 enriched[0]["timestamp"].replace("Z", "+00:00"))
-            t1 = datetime.fromisoformat(
+            last_message_at = datetime.fromisoformat(
                 enriched[-1]["timestamp"].replace("Z", "+00:00"))
-            escalation_minutes = int((t1 - t0).total_seconds() / 60)
+            escalation_minutes = int(
+                (last_message_at - first_message_at).total_seconds() / 60
+            )
         except Exception:
             pass
         panic_score = round(
@@ -320,7 +322,7 @@ def query_slack(req: SlackRequest) -> dict:
         "messages": enriched,
         "escalation_minutes": escalation_minutes,
         "panic_score": panic_score,
-        "query_time_ms": int((time.perf_counter() - t0) * 1000),
+        "query_time_ms": int((time.perf_counter() - started_at) * 1000),
         "source": "live_tools_api",
         "incident_id": req.incident_id,
     }

@@ -2005,6 +2005,7 @@
     const traceEl = document.getElementById('reasoning-trace');
     const pmPanel = document.getElementById('postmortem-panel');
     const agentFeed = document.getElementById('agent-feed');
+    const agentNetwork = document.getElementById('agent-network');
     const agentEmpty = document.getElementById('agent-empty');
     const signalCountEl = document.getElementById('signal-count');
     const hypCountEl = document.getElementById('hyp-count');
@@ -2096,7 +2097,7 @@
       traceEl.innerHTML = '<div class="empty-state"><div class="empty-icon">🧠</div><div>Starting investigation...</div></div>';
       pmPanel.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div>Report pending...</div></div>';
       agentFeed.innerHTML = '';
-      agentFeed.appendChild(document.getElementById('agent-network'));
+      agentFeed.appendChild(agentNetwork);
       agentFeed.appendChild(agentEmpty);
       agentEmpty.style.display = 'none';
       signalCount = 0; traceCount = 0; agentCount = 0; hypMap = {}; timelineEvents = [];
@@ -2592,8 +2593,7 @@
         <div class="debate-resolution ${agrees ? 'agree' : 'disagree'}">${escHtml(e.resolution || '')}</div>
       `;
           // Insert before the empty state placeholder
-          const emptyNode = document.getElementById('agent-empty');
-          agentFeed.insertBefore(card, emptyNode);
+          agentFeed.insertBefore(card, agentEmpty);
 
           // Surface rich debate card in trace panel
           {

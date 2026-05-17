@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postmortem-ai:
     build: .
@@ -7,11 +5,12 @@ services:
     env_file: .env
     environment:
       - VULTR_DEPLOYMENT=true
+      - DB_PATH=/app/data/investigations.db
     ports:
       - "8000:8000"
     volumes:
       - incidents_data:/app/incidents
-      - db_data:/app
+      - app_data:/app/data
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
@@ -31,4 +30,4 @@ services:
 
 volumes:
   incidents_data:
-  db_data:
+  app_data:

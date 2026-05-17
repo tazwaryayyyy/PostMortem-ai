@@ -148,6 +148,15 @@ docker compose up --build -d
 docker compose logs -f postmortem-ai
 ```
 
+If an older server has the legacy Python `docker-compose` command installed, use
+Compose v2 (`docker compose`, with a space). The old v1 binary can fail during
+recreate with `KeyError: 'ContainerConfig'` on newer Docker images.
+
+```bash
+docker compose down --remove-orphans
+docker compose up --build -d --force-recreate --remove-orphans
+```
+
 ### Environment variables
 
 | Variable                        | Default                  | Description                                    |

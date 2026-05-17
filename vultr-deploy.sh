@@ -21,6 +21,10 @@ apt-get install -y -qq \
 
 systemctl enable --now docker
 
+compose() {
+    docker compose "$@"
+}
+
 # ---------- App directory ----------
 mkdir -p "$APP_DIR"
 cd "$APP_DIR"
@@ -45,8 +49,11 @@ ufw allow 443/tcp  # HTTPS
 ufw --force enable
 
 # ---------- Build and launch ----------
-docker compose build --pull
-docker compose up -d
+echo "=== Building and launching with Docker Compose v2 ==="
+compose version
+compose down --remove-orphans || true
+compose build --pull
+compose up -d --force-recreate --remove-orphans
 
 # ---------- TLS (optional) ----------
 if [[ -n "$DOMAIN" ]]; then

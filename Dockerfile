@@ -1,7 +1,10 @@
 FROM python:3.11-slim
 
 # Security: run as non-root
-RUN useradd --create-home --shell /bin/bash appuser
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --shell /bin/bash appuser
 
 WORKDIR /app
 
@@ -12,8 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Ensure incidents directory exists
-RUN mkdir -p incidents && chown -R appuser:appuser /app
+# Ensure writable runtime directories exist
+RUN mkdir -p incidents data && chown -R appuser:appuser /app
 
 USER appuser
 

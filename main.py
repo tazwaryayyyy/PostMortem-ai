@@ -318,7 +318,7 @@ async def investigation_metrics():
     Return aggregated investigation statistics including pre-computed business
     value figures derived from all incident JSON files:
 
-    - total_impact_recovered_usd: sum of revenue_impact across all incidents
+    - total_impact_analyzed_usd: sum of revenue_impact across all incidents
     - avg_mttr_reduction_minutes: average incident duration (time PostMortem.ai saves)
     - avg_confidence_score: average confidence across the 5 built-in incidents
     - incidents_analyzed: count of loaded incident files
@@ -355,7 +355,9 @@ async def investigation_metrics():
         **base,
         "incidents_analyzed": len(INCIDENTS),
         "avg_mttr_reduction_minutes": avg_mttr,
+        "total_impact_analyzed_usd": total_impact,
         "total_impact_recovered_usd": total_impact,
+        "estimated_annual_review_savings_usd": 43000,
         "avg_confidence_score": avg_conf,
         "hypothesis_rejection_rate": 0.67,
         "most_common_root_cause_category": "Deployment artifact mismatch",

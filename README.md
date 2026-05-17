@@ -11,9 +11,26 @@
 > Half that time is engineers asking "what does this break?"
 > PostMortem.ai answers in 93 seconds.
 
-PostMortem.ai runs a production incident through 5 specialist LLMs in 93 seconds and produces a structured post-mortem, including a live argument between two agents using different model architectures.
+PostMortem.ai runs a production incident through six specialist agents in about 93 seconds and produces a structured postmortem, including a live argument between two agents using different model architectures.
 
 The system is designed to be wrong first. The first hypothesis is always a deliberate red herring -- something plausible that the evidence chain must disprove before moving on. The CriticAgent runs on qwen3-32b, a different architecture from the rest of the pipeline, so it has no shared reasoning context to agree with. It only sees the conclusion and the evidence, and it is prompted to find holes.
+
+## Grand Prize Story
+
+> Most incident tools tell teams what is broken.
+> PostMortem.ai tells them what is misleading.
+
+PostMortem.ai is an autonomous incident commander for SRE teams. It investigates a production incident across logs, metrics, deploy history, Slack, PagerDuty, and Gemini visual evidence; rejects plausible-but-wrong root causes; challenges its own conclusion with an independent CriticAgent; and produces an auditable postmortem with owners, recurrence risk, action items, and estimated review savings.
+
+For SRE managers, PostMortem.ai reduces incident review time from hours to minutes by autonomously testing root-cause hypotheses across logs, metrics, deploy history, chat, alerts, and visual dashboard evidence.
+
+PostMortem.ai targets the **Agentic Workflows**, **Collaborative Systems**, **Enterprise Utility**, and **Multimodal Intelligence** tracks:
+
+- **Agentic workflow:** plans an investigation, selects tools, calls APIs, evaluates evidence, and changes course when confidence is low.
+- **Collaborative system:** HypothesisAgent, EvidenceAgent, RootCauseAgent, CriticAgent, ReportAgent, and VisionAgent coordinate through streamed state.
+- **Enterprise utility:** replaces repetitive incident-review labor and produces buyer-ready artifacts for SRE managers.
+- **Multimodal intelligence:** Gemini turns screenshots or inferred dashboard patterns into contradiction checks against text evidence.
+- **Vultr production deployment:** FastAPI + Docker Compose on a Vultr VM, nginx reverse proxy, health endpoint, and persistent SQLite history.
 
 ## Quick Start
 
@@ -27,9 +44,12 @@ Click Judge Mode. Everything runs automatically.
 ### What to watch for
 
 - `Reasoning Trace panel` -- the agent explains which tool it picked and why the others are wrong, before each call
+- `Autonomy Ledger` -- live proof of the current plan, selected tool, rejected alternatives, and confidence movement
+- `Gemini changed the evidence plan` -- visual or inferred dashboard evidence is promoted into the investigation before root-cause synthesis
 - `Dispatch cards` -- each tool call shows the actual HTTP endpoint, parameters, and response latency in milliseconds
 - `Agent Debate card` -- CriticAgent challenges the root cause conclusion; watch whether it agrees or raises a counterargument
 - `Hypothesis rejection cards` -- red-bordered cards show each dead end the agent ruled out, with the specific evidence that killed it
+- `Postmortem report` -- includes evidence table, owner suggestions, recurrence risk, action items, detection gap, and defensible savings assumptions
 
 ## How It Works
 
@@ -81,7 +101,7 @@ All Groq models use a silent fallback chain: `llama-3.3-70b-versatile` then `lla
 | Monthly cost (4 incidents)    | $2,400-$3,600 | $60           |
 | Annual savings (50/yr)        | baseline      | ~$43,000      |
 
-These figures use the Atlassian 2024 State of Incidents report baseline of 4.5 hr mean MTTR.
+The dashboard labels incident dollars as **impact analyzed**, not recovered revenue. The savings estimate is limited to avoided review labor: 4.5 hr manual review baseline, 0.1 hr assisted review, and $150/hr blended engineering cost.
 
 ## Setup
 
@@ -198,6 +218,20 @@ docker compose up --build -d --force-recreate --remove-orphans
 | `incident_e` | Silent Payment Cascade -- Stripe TLS Rotation  | $312K  |
 
 `incident_e` is the recommended demo. The $312K Stripe TLS cascade triggers the CriticAgent debate most reliably.
+
+## Submission Narrative
+
+**Short description:** Autonomous incident commander that proves misleading root-cause hypotheses wrong before generating an auditable postmortem.
+
+**Long description:** PostMortem.ai coordinates six specialist agents to investigate production incidents end-to-end. It ingests PagerDuty, Slack, logs, metrics, deploy history, and Gemini visual evidence; plans evidence-gathering steps; calls live HTTP tool endpoints; rejects false leads; escalates low-confidence conclusions; asks an independent CriticAgent to challenge the result; and produces an enterprise postmortem with owners, recurrence risk, detection gaps, and estimated review-cost savings.
+
+**Demo path:** Click `Judge Mode`. The app simulates a PagerDuty webhook, runs the autonomous investigation, shows false-lead rejection, promotes Gemini visual evidence into the evidence plan, displays a CriticAgent challenge, and generates the final report.
+
+**Prize fit:**
+
+- Vultr: production web app on Vultr VM with Docker Compose, nginx, health checks, and persistent SQLite history.
+- Google Gemini: multimodal evidence is used as a contradiction check, not just as a side summary.
+- Overall: clear enterprise buyer, measurable labor savings, working public URL, and visible autonomous decision-making.
 
 ## License
 

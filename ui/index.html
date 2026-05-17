@@ -258,6 +258,14 @@
       flex-shrink: 0;
     }
 
+    .model-strip-proof {
+      margin-left: auto;
+      font-size: 9px;
+      color: var(--green);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
     .model-chip {
       font-size: 9px;
       padding: 2px 8px;
@@ -1082,6 +1090,127 @@
       color: var(--text-dim);
     }
 
+    .pm-evidence-table {
+      display: grid;
+      gap: 4px;
+    }
+
+    .pm-evidence-row {
+      display: grid;
+      grid-template-columns: 86px 1fr 92px;
+      gap: 6px;
+      padding: 7px 8px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    .pm-evidence-source {
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    .pm-evidence-effect {
+      color: var(--green);
+      text-transform: uppercase;
+      font-size: 8px;
+      letter-spacing: 0.7px;
+    }
+
+    .pm-risk-card {
+      padding: 9px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--yellow-dim);
+      background: rgba(255, 211, 42, 0.05);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .pm-risk-score {
+      font-family: var(--font-ui);
+      font-size: 18px;
+      color: var(--yellow);
+      font-weight: 800;
+      margin-right: 6px;
+    }
+
+    .pm-owner-item {
+      display: grid;
+      grid-template-columns: 116px 1fr;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 10.5px;
+      line-height: 1.45;
+    }
+
+    .pm-owner-item:last-child {
+      border-bottom: none;
+    }
+
+    .pm-owner-name {
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .pm-visual-decision {
+      padding: 8px 10px;
+      background: rgba(66, 133, 244, 0.07);
+      border: 1px solid rgba(66, 133, 244, 0.45);
+      border-radius: var(--radius);
+      font-size: 10.5px;
+      color: var(--text);
+      line-height: 1.55;
+    }
+
+    .autonomy-ledger {
+      border: 1px solid var(--border-hi);
+      background: rgba(0, 229, 160, 0.035);
+      border-radius: var(--radius);
+      padding: 8px;
+      margin-bottom: 4px;
+    }
+
+    .autonomy-ledger-title {
+      font-size: 9px;
+      color: var(--green);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .ledger-row {
+      display: grid;
+      grid-template-columns: 82px 1fr;
+      gap: 6px;
+      padding: 4px 0;
+      border-top: 1px solid rgba(42, 63, 88, 0.55);
+      font-size: 9.5px;
+      line-height: 1.35;
+    }
+
+    .ledger-row:first-of-type {
+      border-top: none;
+    }
+
+    .ledger-label {
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+    }
+
+    .ledger-value {
+      color: var(--text);
+    }
+
+    .trace-card-visual {
+      border-left: 3px solid #4285f4;
+      background: rgba(66, 133, 244, 0.06);
+    }
+
     /* ── Agent Activity panel ── */
     .agent-dispatch-card {
       padding: 10px 12px;
@@ -1736,7 +1865,7 @@
         <div class="logo-icon">⊕</div>
         <div>
           PostMortem<span class="logo-dot">.</span>ai
-          <div class="logo-tagline">Autonomous Root Cause Analysis</div>
+          <div class="logo-tagline">Autonomous Incident Commander</div>
         </div>
       </div>
 
@@ -1768,8 +1897,7 @@
       required</div>
 
     <!-- Judge Mode banner -->
-    <div class="judge-banner" id="judge-banner">⚡ Judge Mode Active — Guided walkthrough — watch the Reasoning Trace
-      panel →</div>
+    <div class="judge-banner" id="judge-banner">⚡ Judge Mode Active — webhook, false-lead rejection, Gemini cross-check, critic challenge, ROI report</div>
 
     <!-- ── Model stack strip ── -->
     <div class="model-strip">
@@ -1780,6 +1908,7 @@
       <span class="model-chip" id="chip-rep" title="ReportAgent">ReportAgent · compound-beta</span>
       <span class="model-chip" id="chip-crit" title="CriticAgent">CriticAgent · qwen3-32b</span>
       <span class="model-chip gemini" id="chip-vision" title="VisionAgent">VisionAgent · gemini-2.5-flash</span>
+      <span class="model-strip-proof">Finds what is misleading, not just what is broken</span>
     </div>
 
     <!-- ── Business Value Stats Strip ── -->
@@ -1795,7 +1924,7 @@
       </div>
       <div class="stat-tile">
         <div class="stat-value" id="stat-impact">—</div>
-        <div class="stat-label">Total Impact Recovered</div>
+        <div class="stat-label">Impact Analyzed <span style="color:var(--text-dim);font-weight:400">(not claimed recovered)</span></div>
       </div>
       <div class="stat-tile">
         <div class="stat-value" id="stat-confidence">—</div>
@@ -1915,6 +2044,14 @@
               <span class="agent-node" id="an-rep">ReportAgent</span>
             </div>
           </div>
+          <div class="autonomy-ledger" id="autonomy-ledger">
+            <div class="autonomy-ledger-title">Autonomy Ledger</div>
+            <div class="ledger-row"><span class="ledger-label">Plan</span><span class="ledger-value" id="ledger-plan">Waiting for incident trigger</span></div>
+            <div class="ledger-row"><span class="ledger-label">Tool</span><span class="ledger-value" id="ledger-tool">—</span></div>
+            <div class="ledger-row"><span class="ledger-label">Why</span><span class="ledger-value" id="ledger-why">—</span></div>
+            <div class="ledger-row"><span class="ledger-label">Rejected</span><span class="ledger-value" id="ledger-rejected">—</span></div>
+            <div class="ledger-row"><span class="ledger-label">Confidence</span><span class="ledger-value" id="ledger-confidence">0% → pending</span></div>
+          </div>
           <div class="empty-state" id="agent-empty">
             <div class="empty-icon">🤖</div>
             <div>Agents idle</div>
@@ -2006,7 +2143,13 @@
     const pmPanel = document.getElementById('postmortem-panel');
     const agentFeed = document.getElementById('agent-feed');
     const agentNetwork = document.getElementById('agent-network');
+    const autonomyLedger = document.getElementById('autonomy-ledger');
     const agentEmpty = document.getElementById('agent-empty');
+    const ledgerPlan = document.getElementById('ledger-plan');
+    const ledgerTool = document.getElementById('ledger-tool');
+    const ledgerWhy = document.getElementById('ledger-why');
+    const ledgerRejected = document.getElementById('ledger-rejected');
+    const ledgerConfidence = document.getElementById('ledger-confidence');
     const signalCountEl = document.getElementById('signal-count');
     const hypCountEl = document.getElementById('hyp-count');
     const traceCountEl = document.getElementById('trace-count');
@@ -2098,8 +2241,16 @@
       pmPanel.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div>Report pending...</div></div>';
       agentFeed.innerHTML = '';
       agentFeed.appendChild(agentNetwork);
+      agentFeed.appendChild(autonomyLedger);
       agentFeed.appendChild(agentEmpty);
       agentEmpty.style.display = 'none';
+      updateLedger({
+        plan: 'Collect signals, propose hypotheses, disprove false leads',
+        tool: '—',
+        why: 'Waiting for first evidence decision',
+        rejected: '—',
+        confidence: '0% → pending',
+      });
       signalCount = 0; traceCount = 0; agentCount = 0; hypMap = {}; timelineEvents = [];
       signalCountEl.textContent = '0 signals';
       hypCountEl.textContent = '0 hypotheses';
@@ -2119,6 +2270,14 @@
       // Reset agent network nodes
       Object.values(anNodes).forEach(n => n && n.classList.remove('active', 'done'));
       Object.values(chipMap).forEach(c => c && c.classList.remove('active', 'groq', 'gemini'));
+    }
+
+    function updateLedger({ plan, tool, why, rejected, confidence }) {
+      if (plan !== undefined) ledgerPlan.textContent = plan;
+      if (tool !== undefined) ledgerTool.textContent = tool;
+      if (why !== undefined) ledgerWhy.textContent = why;
+      if (rejected !== undefined) ledgerRejected.textContent = rejected;
+      if (confidence !== undefined) ledgerConfidence.textContent = confidence;
     }
 
     function setConfidenceMeter(pct) {
@@ -2355,6 +2514,9 @@
       pmStatusEl.textContent = `${pm.confidence}% confidence`;
       pmToolbar.style.display = 'flex';
       const impact = pm.impact || {};
+      const businessValue = pm.business_value || {};
+      const recurrenceRisk = pm.recurrence_risk || {};
+      const visualDecision = pm.visual_decision || null;
 
       const rejectedHtml = (pm.rejected || []).map(r =>
         `<div class="pm-rejected-item">🔴 ${escHtml(r)}</div>`
@@ -2373,6 +2535,21 @@
         `<span class="pm-model-chip">${escHtml(role)}: ${escHtml(model)}</span>`
       ).join('');
 
+      const evidenceHtml = (pm.evidence_table || []).map(row => `
+        <div class="pm-evidence-row">
+          <div class="pm-evidence-source">${escHtml(row.source || 'evidence')}</div>
+          <div>${escHtml(row.finding || '')}</div>
+          <div class="pm-evidence-effect">${escHtml(row.effect || '')}</div>
+        </div>
+      `).join('');
+
+      const ownersHtml = (pm.owner_suggestions || []).map(row => `
+        <div class="pm-owner-item">
+          <div class="pm-owner-name">${escHtml(row.owner || 'Team')}</div>
+          <div>${escHtml(row.action || '')}</div>
+        </div>
+      `).join('');
+
       pmPanel.innerHTML = `
     <div class="pm-section">
       <div class="pm-section-title">Root Cause</div>
@@ -2390,17 +2567,28 @@
         <div class="pm-impact-card"><div class="pm-impact-label">Severity</div><div class="pm-impact-value severity-p1">${escHtml(impact.severity || '—')}</div></div>
         <div class="pm-impact-card"><div class="pm-impact-label">Downtime</div><div class="pm-impact-value">${escHtml(String(impact.duration_minutes || '—'))} min</div></div>
         <div class="pm-impact-card"><div class="pm-impact-label">Affected Users</div><div class="pm-impact-value">${escHtml(impact.affected_users || '—')}</div></div>
-        <div class="pm-impact-card"><div class="pm-impact-label">Revenue Impact</div><div class="pm-impact-value">${escHtml(impact.revenue_impact || '—')}</div></div>
+        <div class="pm-impact-card"><div class="pm-impact-label">Impact Analyzed</div><div class="pm-impact-value">${escHtml(businessValue.impact_analyzed || impact.revenue_impact || '—')}</div></div>
+        <div class="pm-impact-card"><div class="pm-impact-label">Review Cost Avoided</div><div class="pm-impact-value">${escHtml(businessValue.estimated_review_cost_saved || '—')}</div></div>
+        <div class="pm-impact-card"><div class="pm-impact-label">Engineer Hours Saved</div><div class="pm-impact-value">${escHtml(String(businessValue.estimated_engineer_hours_saved || '—'))} hr</div></div>
       </div>
+      <div class="pm-confidence" style="color:var(--text-dim)">${escHtml(businessValue.basis || '')}</div>
     </div>
 
+    ${evidenceHtml ? `<div class="pm-section"><div class="pm-section-title">Evidence Table</div><div class="pm-evidence-table">${evidenceHtml}</div></div>` : ''}
+
     ${rejectedHtml ? `<div class="pm-section"><div class="pm-section-title">Rejected Hypotheses</div>${rejectedHtml}</div>` : ''}
+
+    ${visualDecision ? `<div class="pm-section"><div class="pm-section-title">Gemini Decision</div><div class="pm-visual-decision"><b>${escHtml(visualDecision.mode || 'visual')}</b> · ${escHtml(visualDecision.decision || '')}<br>${escHtml(visualDecision.evidence || '')}</div></div>` : ''}
 
     ${contribHtml ? `<div class="pm-section"><div class="pm-section-title">Contributing Factors</div><div class="pm-contrib">${contribHtml}</div></div>` : ''}
 
     <div class="pm-section"><div class="pm-section-title">Action Items</div>${actionsHtml}</div>
 
+    ${ownersHtml ? `<div class="pm-section"><div class="pm-section-title">Owner Suggestions</div>${ownersHtml}</div>` : ''}
+
     <div class="pm-section"><div class="pm-section-title">Detection Gap</div><div class="pm-detection-gap">${escHtml(pm.detection_gap || '—')}</div></div>
+
+    ${recurrenceRisk.score != null ? `<div class="pm-section"><div class="pm-section-title">Recurrence Risk</div><div class="pm-risk-card"><span class="pm-risk-score">${escHtml(String(recurrenceRisk.score))}</span>${escHtml(recurrenceRisk.label || '')} risk · ${escHtml(recurrenceRisk.rationale || '')}</div></div>` : ''}
 
     ${modelHtml ? `<div class="pm-section"><div class="pm-section-title">Agent Models Used</div><div class="pm-models">${modelHtml}</div></div>` : ''}
   `;
@@ -2412,6 +2600,8 @@
       if (!postmortemData) return;
       const pm = postmortemData;
       const impact = pm.impact || {};
+      const businessValue = pm.business_value || {};
+      const recurrenceRisk = pm.recurrence_risk || {};
       const now = new Date();
       const dateTag = now.toISOString().slice(0, 10).replace(/-/g, '');
       const timestamp = now.toUTCString();
@@ -2434,13 +2624,20 @@
       );
 
       const contribList = (pm.contributing_factors || []).map(f => `- ${f}`).join('\n') || '- None identified';
+      const evidenceRows = (pm.evidence_table || []).map(row =>
+        `| ${(row.source || '').replace(/\|/g, '/')} | ${(row.finding || '').replace(/\|/g, '/')} | ${(row.effect || '').replace(/\|/g, '/')} |`
+      );
+      const ownerRows = (pm.owner_suggestions || []).map(row =>
+        `| ${(row.owner || '').replace(/\|/g, '/')} | ${(row.action || '').replace(/\|/g, '/')} |`
+      );
 
       const lines = [
         `# Post-Mortem Report: ${pm.title || pm.incident_id}`,
         ``,
-        `**Severity:** ${impact.severity || '—'} | **Impact:** ${impact.revenue_impact || '—'} | **Duration:** ${impact.duration_minutes || '—'} min`,
+        `**Severity:** ${impact.severity || '—'} | **Impact analyzed:** ${businessValue.impact_analyzed || impact.revenue_impact || '—'} | **Duration:** ${impact.duration_minutes || '—'} min`,
         `**Investigation completed:** ${timestamp}`,
         `**Confidence:** ${pm.confidence || 0}%`,
+        `**Estimated review cost avoided:** ${businessValue.estimated_review_cost_saved || '—'} (${businessValue.basis || 'manual review baseline'})`,
         ``,
         `## Executive Summary`,
         `PostMortem.ai autonomously investigated this incident using a 5-agent pipeline (Hypothesis → Evidence → RootCause → Critic → Report). ` +
@@ -2454,6 +2651,16 @@
         ``,
         `## Root Cause`,
         pm.root_cause || '—',
+        ``,
+        `## Evidence Table`,
+        `| Source | Finding | Effect |`,
+        `|--------|---------|--------|`,
+        ...(evidenceRows.length ? evidenceRows : ['| — | No evidence rows recorded | — |']),
+        ``,
+        `## Gemini Multimodal Decision`,
+        pm.visual_decision
+          ? `${pm.visual_decision.mode}: ${pm.visual_decision.decision}\n\n${pm.visual_decision.evidence}`
+          : 'No visual decision recorded.',
         ``,
         `## Contributing Factors`,
         contribList,
@@ -2469,13 +2676,22 @@
         `|----------|--------|-------|-----|`,
         ...(actionRows.length ? actionRows : ['| P1 — Immediate | Review incident response | Team | TBD |']),
         ``,
+        `## Owner Suggestions`,
+        `| Owner | Action |`,
+        `|-------|--------|`,
+        ...(ownerRows.length ? ownerRows : ['| On-call Team | Review incident response |']),
+        ``,
+        `## Recurrence Risk`,
+        `${recurrenceRisk.label || 'Unknown'} (${recurrenceRisk.score ?? '—'}/100). ${recurrenceRisk.rationale || ''}`,
+        ``,
         `## Impact`,
         `| Metric | Value |`,
         `|--------|-------|`,
         `| Severity | ${impact.severity || '—'} |`,
         `| Duration | ${impact.duration_minutes || '—'} min |`,
         `| Affected Users | ${impact.affected_users || '—'} |`,
-        `| Revenue Impact | ${impact.revenue_impact || '—'} |`,
+        `| Impact Analyzed | ${businessValue.impact_analyzed || impact.revenue_impact || '—'} |`,
+        `| Estimated Review Cost Avoided | ${businessValue.estimated_review_cost_saved || '—'} |`,
         ``,
         `## Agent Investigation Log`,
         `| Agent | Model | Task | Confidence Delta |`,
@@ -2531,6 +2747,7 @@
       switch (e.type) {
         case 'state_change':
           setStateBadge(e.state);
+          updateLedger({ plan: e.message || e.state });
           addTrace('state', e.state, e.message);
           break;
 
@@ -2544,6 +2761,10 @@
 
         case 'visual_evidence':
           visualBadge.style.display = 'inline-flex';
+          updateLedger({
+            tool: 'Gemini Vision',
+            why: 'Screenshot evidence will be used to cross-check textual signals',
+          });
           addTrace('agent', 'VISION ANALYSIS', e.message);
           break;
 
@@ -2555,6 +2776,7 @@
         case 'agent_dispatch':
           addAgentDispatch(e.agent_name, e.task, e.model);
           updateAgentDot(e.agent_name, 'running');
+          updateLedger({ plan: e.task, tool: e.agent_name });
           addTrace('agent', `DISPATCH · ${e.agent_name}`, `${e.task} [${e.model}]`);
           break;
 
@@ -2635,8 +2857,34 @@
           signalFeed.appendChild(div);
           signalCount++;
           signalCountEl.textContent = `${signalCount} signal${signalCount !== 1 ? 's' : ''}`;
+          updateLedger({
+            tool: 'Gemini Vision',
+            why: 'Infers expected dashboard pattern and checks it against text signals',
+          });
           addTrace('agent', 'GEMINI VISUAL INFERENCE', e.message || 'Visual pattern inferred from signal data');
           scrollBottom(signalFeed);
+          break;
+        }
+
+        case 'multimodal_decision': {
+          updateLedger({
+            plan: e.decision || 'Use visual evidence as contradiction check',
+            tool: 'Gemini Vision',
+            why: e.effect || e.basis || 'Visual evidence changes the evidence plan',
+          });
+          const card = document.createElement('div');
+          card.className = 'trace-card trace-card-visual';
+          card.innerHTML = `
+            <div class="trace-card-title">👁 Gemini changed the evidence plan</div>
+            <div class="trace-card-body">${escHtml(e.decision || '')}</div>
+            <div class="trace-card-body" style="margin-top:4px;color:var(--text-dim)">${escHtml(e.basis || '')}</div>
+            <div class="trace-card-chips"><span class="trace-chip trace-chip-selected">${e.inferred ? 'Inferred dashboard pattern' : 'Uploaded screenshot'}</span></div>`;
+          const empties = traceEl.querySelectorAll('.empty-state');
+          empties.forEach(el => el.remove());
+          traceEl.appendChild(card);
+          traceCount++;
+          traceCountEl.textContent = `${traceCount} step${traceCount !== 1 ? 's' : ''}`;
+          scrollBottom(traceEl);
           break;
         }
 
@@ -2656,6 +2904,11 @@
               <span class="trace-chip trace-chip-selected">✓ ${escHtml(e.tool_selected || '')}</span>
               ${rejChips}
             </div>`;
+          updateLedger({
+            tool: e.tool_selected || 'Evidence tool',
+            why: e.reasoning || 'Tool selected for direct evidence',
+            rejected: rejected.length ? rejected.join(', ') : 'No alternatives rejected',
+          });
           const empties = traceEl.querySelectorAll('.empty-state');
           empties.forEach(el => el.remove());
           traceEl.appendChild(card);
@@ -2671,6 +2924,7 @@
           card.className = 'trace-card trace-card-dispatch';
           const params = e.params || {};
           const paramsStr = Object.entries(params).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(' | ');
+          updateLedger({ tool: e.tool || 'tool call', plan: `Call ${e.endpoint || e.tool || 'tool'} and evaluate response` });
           card.innerHTML = `
             <div class="trace-card-title">🔧 ${escHtml(e.agent || 'EvidenceAgent')} called ${escHtml(e.tool || '')}</div>
             <div class="trace-card-chips">
@@ -2710,6 +2964,7 @@
           const rcard = document.createElement('div');
           rcard.className = 'trace-card';
           const count = countEntries(e.data);
+          updateLedger({ why: `Received ${count} evidence entries from ${e.tool || 'tool'}` });
           rcard.innerHTML = `<div class="trace-card-title" style="color:var(--green)">✓ RESULT · ${escHtml((e.tool || '').toUpperCase())}</div>
             <div class="trace-card-body">Received ${count} entr${count !== 1 ? 'ies' : 'y'}${latency ? ` · ${latency}` : ''}</div>`;
           traceEl.appendChild(rcard);
@@ -2721,6 +2976,11 @@
 
         case 'hypothesis_rejected': {
           updateHypStatus(e.id, 'rejected', null, e.reason);
+          updateLedger({
+            plan: `Reject H${e.id} and advance to the next plausible cause`,
+            rejected: `H${e.id}: ${e.reason || 'Evidence contradicted hypothesis'}`,
+            confidence: '0% → false lead eliminated',
+          });
           const rcard = document.createElement('div');
           rcard.className = 'trace-card trace-card-rejection';
           rcard.innerHTML = `<div class="trace-card-title">\u2717 REJECTED \u00b7 H${e.id}</div><div class="trace-card-body">${escHtml(e.reason || '')}</div>`;
@@ -2736,6 +2996,10 @@
 
         case 'hypothesis_confirmed':
           updateHypStatus(e.id, 'confirmed', e.confidence, e.evidence);
+          updateLedger({
+            plan: 'Synthesize root cause, challenge conclusion, generate postmortem',
+            confidence: `${e.confidence}% → root cause candidate`,
+          });
           addTrace('confirm', `✓ CONFIRMED · H${e.id} · ${e.confidence}%`, e.evidence);
           addTimelineEvent(new Date().toISOString(), `Root cause confirmed`, false);
           setConfidenceMeter(e.confidence);
@@ -2918,8 +3182,9 @@
           animateCounter(document.getElementById('stat-incidents'), d.incidents_analyzed, '', '', 400);
         if (d.avg_mttr_reduction_minutes != null)
           animateCounter(document.getElementById('stat-mttr'), d.avg_mttr_reduction_minutes, ' min', '', 400);
-        if (d.total_impact_recovered_usd != null)
-          animateCounter(document.getElementById('stat-impact'), d.total_impact_recovered_usd, '', '$', 600);
+        const impactAnalyzed = d.total_impact_analyzed_usd ?? d.total_impact_recovered_usd;
+        if (impactAnalyzed != null)
+          animateCounter(document.getElementById('stat-impact'), impactAnalyzed, '', '$', 600);
         if (d.avg_confidence_score != null)
           animateCounter(document.getElementById('stat-confidence'), d.avg_confidence_score, '%', '', 400);
       } catch (err) { console.warn('Stats load failed:', err); }

@@ -8,7 +8,7 @@ os.environ.setdefault("GOOGLE_API_KEY", "dummy-smoke-key")
 
 from main import app  # noqa: E402
 import agent as agent_module  # noqa: E402
-from agent import CriticAgent  # noqa: E402
+from agent import CriticAgent, PostMortemCoordinator  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 client = TestClient(app)
@@ -64,6 +64,8 @@ print(" ", r.json())
 check("status 200", r.status_code == 200)
 check("total_investigations present", "total_investigations" in r.json())
 check("confidence_distribution present", "confidence_distribution" in r.json())
+check("impact analyzed present", "total_impact_analyzed_usd" in r.json())
+check("annual review savings present", "estimated_annual_review_savings_usd" in r.json())
 dist = r.json().get("confidence_distribution", {})
 check("empty high bucket is numeric", dist.get("high_90_plus") == 0)
 check("empty medium bucket is numeric", dist.get("medium_80_89") == 0)
@@ -113,6 +115,33 @@ try:
     check("critic fallback marked", critic_result.get("fallback") is True)
 finally:
     agent_module._chat_with_fallback = original_chat
+
+print("\n=== Enterprise postmortem fields ===")
+coordinator = PostMortemCoordinator("incident_a")
+coordinator.conclusion = {
+    "description": "Recent auth deploy broke OAuth token validation algorithm",
+    "confidence": 87,
+    "confirming_evidence": "Auth deploy changed token validation. Logs confirm algorithm mismatch.",
+    "data_to_query": ["query_github(api-service)", "query_logs(auth, error)"],
+}
+coordinator.rejected = [{
+    "description": "Database connection pool exhaustion",
+    "rejection_evidence": "DB connections stayed below exhaustion threshold.",
+    "data_to_query": ["query_metrics(database, active_connections)"],
+}]
+coordinator.vision_findings = {
+    "is_inferred": True,
+    "visual_pattern": "Auth errors spike while database panels remain healthy.",
+    "affected_panels": ["Auth errors"],
+    "affected_services": ["auth"],
+}
+pm = coordinator._generate_postmortem()
+print(" ", {k: pm.get(k) for k in ["business_value", "recurrence_risk", "visual_decision"]})
+check("business value present", "business_value" in pm)
+check("evidence table present", len(pm.get("evidence_table", [])) >= 2)
+check("owner suggestions present", len(pm.get("owner_suggestions", [])) >= 1)
+check("recurrence risk present", "score" in pm.get("recurrence_risk", {}))
+check("visual decision present", pm.get("visual_decision") is not None)
 
 print("\n=== POST /webhook/pagerduty ===")
 payload = {

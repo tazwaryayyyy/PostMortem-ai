@@ -16,8 +16,27 @@ echo "=== PostMortem.ai Vultr Deployer ==="
 # ---------- System packages ----------
 apt-get update -qq
 apt-get install -y -qq \
-    docker.io docker-compose-plugin curl git \
+    ca-certificates curl gnupg git \
     certbot python3-certbot-nginx
+
+# Ubuntu's docker.io package often does not include the Compose v2 plugin.
+# Install Docker from the official Docker apt repository so `docker compose`
+# is available and the legacy docker-compose v1 ContainerConfig bug is avoided.
+install -m 0755 -d /etc/apt/keyrings
+if [[ ! -f /etc/apt/keyrings/docker.asc ]]; then
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    chmod a+r /etc/apt/keyrings/docker.asc
+fi
+
+. /etc/os-release
+echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable" \
+    > /etc/apt/sources.list.d/docker.list
+
+apt-get update -qq
+apt-get install -y -qq \
+    docker-ce docker-ce-cli containerd.io \
+    docker-buildx-plugin docker-compose-plugin
 
 systemctl enable --now docker
 

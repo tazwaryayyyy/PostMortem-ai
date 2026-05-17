@@ -1727,6 +1727,31 @@
       animation: slide-in 0.2s ease;
     }
 
+    .judge-spotlight {
+      position: relative;
+      z-index: 2;
+      outline: 2px solid var(--yellow);
+      box-shadow: 0 0 0 4px rgba(255, 211, 42, 0.14), 0 0 28px rgba(255, 211, 42, 0.26);
+      transition: outline 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .judge-caption {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      max-width: 280px;
+      padding: 6px 8px;
+      border-radius: var(--radius);
+      background: rgba(8, 11, 16, 0.96);
+      border: 1px solid var(--yellow-dim);
+      color: var(--yellow);
+      font-size: 9px;
+      line-height: 1.35;
+      letter-spacing: 0.2px;
+      pointer-events: none;
+      z-index: 3;
+    }
+
     /* ── Business value stats strip ── */
     .stats-strip {
       display: grid;
@@ -2572,6 +2597,7 @@
         <div class="pm-impact-card"><div class="pm-impact-label">Engineer Hours Saved</div><div class="pm-impact-value">${escHtml(String(businessValue.estimated_engineer_hours_saved || '—'))} hr</div></div>
       </div>
       <div class="pm-confidence" style="color:var(--text-dim)">${escHtml(businessValue.basis || '')}</div>
+      <div class="pm-detection-gap" style="margin-top:6px">${escHtml(businessValue.disclaimer || `Estimated review labor saved: ${businessValue.estimated_engineer_hours_saved || '4.4'} engineer-hours, not claimed revenue recovery.`)}</div>
     </div>
 
     ${evidenceHtml ? `<div class="pm-section"><div class="pm-section-title">Evidence Table</div><div class="pm-evidence-table">${evidenceHtml}</div></div>` : ''}
@@ -2592,6 +2618,10 @@
 
     ${modelHtml ? `<div class="pm-section"><div class="pm-section-title">Agent Models Used</div><div class="pm-models">${modelHtml}</div></div>` : ''}
   `;
+      updateLedger({
+        plan: 'Postmortem generated with owners, recurrence risk, and defensible savings',
+        confidence: `${pm.confidence}% → report complete`,
+      });
       scrollBottom(pmPanel);
     }
 
@@ -2638,6 +2668,7 @@
         `**Investigation completed:** ${timestamp}`,
         `**Confidence:** ${pm.confidence || 0}%`,
         `**Estimated review cost avoided:** ${businessValue.estimated_review_cost_saved || '—'} (${businessValue.basis || 'manual review baseline'})`,
+        `**Savings note:** ${businessValue.disclaimer || `Estimated review labor saved: ${businessValue.estimated_engineer_hours_saved || '4.4'} engineer-hours, not claimed revenue recovery.`}`,
         ``,
         `## Executive Summary`,
         `PostMortem.ai autonomously investigated this incident using a 5-agent pipeline (Hypothesis → Evidence → RootCause → Critic → Report). ` +
@@ -3198,6 +3229,37 @@
       dot.className = 'agent-status-dot-pill agent-dot-' + state;
     }
 
+    function spotlightForJudges(el, caption, duration = 2600) {
+      if (!el) return;
+      document.querySelectorAll('.judge-caption').forEach(node => node.remove());
+      document.querySelectorAll('.judge-spotlight').forEach(node => node.classList.remove('judge-spotlight'));
+      el.classList.add('judge-spotlight');
+      el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      const cap = document.createElement('div');
+      cap.className = 'judge-caption';
+      cap.textContent = caption;
+      el.appendChild(cap);
+      setTimeout(() => {
+        cap.remove();
+        el.classList.remove('judge-spotlight');
+      }, duration);
+    }
+
+    function waitForElement(selector, timeoutMs = 90000) {
+      return new Promise(resolve => {
+        const existing = document.querySelector(selector);
+        if (existing) { resolve(existing); return; }
+        const started = Date.now();
+        const timer = setInterval(() => {
+          const el = document.querySelector(selector);
+          if (el || Date.now() - started > timeoutMs) {
+            clearInterval(timer);
+            resolve(el);
+          }
+        }, 350);
+      });
+    }
+
     // ── Judge Mode ─────────────────────────────────────────────────────────────
     document.getElementById('btn-judge-mode').addEventListener('click', async () => {
       if (investigationActive) return;
@@ -3206,6 +3268,14 @@
 
       // Step 1: select incident_e (most complex, recommended)
       selectEl.value = 'incident_e';
+      updateLedger({
+        plan: 'Judge Mode: webhook trigger, autonomous investigation, verified postmortem',
+        tool: 'PagerDuty webhook',
+        why: 'Demonstrate hands-free incident command',
+        rejected: 'Pending evidence',
+        confidence: '0% → starting',
+      });
+      spotlightForJudges(autonomyLedger, 'Autonomy Ledger: live proof of plan, tool choice, rejected alternatives, and confidence movement.', 2800);
 
       // Step 2: briefly show a live tool call in the trace to demonstrate tools
       try {
@@ -3233,23 +3303,18 @@
       await new Promise(r => setTimeout(r, 500));
       traceEl.scrollTop = 0;
 
-      // Step 5+6: after investigation completes, highlight debate card and export button
-      const pollDebate = setInterval(() => {
-        const debateCard = traceEl.querySelector('.trace-card-debate');
-        if (debateCard) {
-          clearInterval(pollDebate);
-          debateCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          debateCard.style.outline = '2px solid gold';
-          debateCard.style.transition = 'outline 0.3s';
-          setTimeout(() => {
-            debateCard.style.outline = '';
-            // Scroll to export button and highlight it
-            btnExportMd.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            btnExportMd.style.outline = '2px solid var(--green)';
-            setTimeout(() => { btnExportMd.style.outline = ''; }, 3000);
-          }, 3000);
-        }
-      }, 500);
+      // Step 5+: guided tour for judges as the autonomous run unfolds.
+      const visualCard = await waitForElement('.trace-card-visual', 45000);
+      spotlightForJudges(visualCard, 'Gemini is not decorative: visual evidence becomes a contradiction check before synthesis.', 3200);
+
+      const debateCard = await waitForElement('.trace-card-debate', 90000);
+      spotlightForJudges(debateCard, 'CriticAgent independently challenges the root-cause conclusion before report generation.', 3400);
+
+      const postmortemCard = await waitForElement('#postmortem-panel .pm-root-cause', 90000);
+      spotlightForJudges(postmortemCard, 'Final enterprise artifact: root cause, evidence table, owners, recurrence risk, and defensible savings.', 3600);
+
+      await new Promise(r => setTimeout(r, 1200));
+      spotlightForJudges(btnExportMd, 'Exportable audit trail for the incident review meeting.', 2600);
     });
 
     // ── Gap #4: Simulate PagerDuty Webhook ────────────────────────────────────

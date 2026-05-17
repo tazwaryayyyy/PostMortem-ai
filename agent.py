@@ -829,6 +829,10 @@ class PostMortemCoordinator:
                 "estimated_engineer_hours_saved": review_hours_saved,
                 "estimated_review_cost_saved": f"${review_cost_saved:,}",
                 "basis": "Assumes 4.5 hr manual review baseline and $150/hr blended engineering cost.",
+                "disclaimer": (
+                    f"Estimated review labor saved: {review_hours_saved} engineer-hours, "
+                    "not claimed revenue recovery."
+                ),
             },
             "recurrence_risk": recurrence_risk,
             "evidence_table": evidence_rows,

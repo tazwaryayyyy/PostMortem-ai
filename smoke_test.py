@@ -138,6 +138,7 @@ coordinator.vision_findings = {
 pm = coordinator._generate_postmortem()
 print(" ", {k: pm.get(k) for k in ["business_value", "recurrence_risk", "visual_decision"]})
 check("business value present", "business_value" in pm)
+check("business value disclaimer present", "not claimed revenue recovery" in pm.get("business_value", {}).get("disclaimer", ""))
 check("evidence table present", len(pm.get("evidence_table", [])) >= 2)
 check("owner suggestions present", len(pm.get("owner_suggestions", [])) >= 1)
 check("recurrence risk present", "score" in pm.get("recurrence_risk", {}))

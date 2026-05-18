@@ -3,7 +3,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776ab?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Powered by Groq](https://img.shields.io/badge/Powered%20by-Groq-f55036?logo=thunderbird&logoColor=white)](https://groq.com)
+[![Powered by Vultr](https://img.shields.io/badge/Inference-Vultr%20Serverless-009BDE?logo=vultr&logoColor=white)](https://www.vultr.com/products/cloud-inference/)
+[![Powered by Groq](https://img.shields.io/badge/Fallback-Groq-f55036?logo=thunderbird&logoColor=white)](https://groq.com)
 [![Vision: Gemini](https://img.shields.io/badge/Vision-Gemini-4285f4?logo=google&logoColor=white)](https://ai.google.dev)
 [![Models: 5 Agents](https://img.shields.io/badge/Agents-5%20Specialist%20LLMs-8b5cf6)](agent.py)
 
@@ -108,8 +109,8 @@ The dashboard labels incident dollars as **impact analyzed**, not recovered reve
 ### 1. Install
 
 ```bash
-git clone <your-repo>
-cd postmortem-ai
+git clone https://github.com/tazwaryayyyy/PostMortem-ai
+cd PostMortem-ai
 pip install -r requirements.txt
 ```
 
@@ -141,7 +142,7 @@ Open `http://localhost:8000`
 ssh root@YOUR_VULTR_IP
 
 # 3. Clone the repo
-git clone <your-repo> /opt/postmortem-ai
+git clone https://github.com/tazwaryayyyy/PostMortem-ai /opt/PostMortem-ai
 cd /opt/postmortem-ai
 
 # 4. Create .env

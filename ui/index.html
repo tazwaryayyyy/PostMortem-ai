@@ -2110,7 +2110,8 @@
           <span class="panel-count" id="pm-status">Pending</span>
         </div>
         <div id="pm-toolbar" class="pm-toolbar" style="display:none">
-          <button class="btn btn-ghost" id="btn-export-md" disabled style="font-size:10px;padding:4px 10px">⬇ Copy Markdown</button>
+          <button class="btn btn-ghost" id="btn-export-md" disabled style="font-size:10px;padding:4px 10px">⬇ Copy
+            Markdown</button>
           <button class="btn btn-ghost" id="btn-export-pdf" disabled style="font-size:10px;padding:4px 10px">⬇ Export
             PDF</button>
         </div>
@@ -2578,10 +2579,14 @@
         anNodes[nodeKey].classList.add('active');
       }
 
-      // Activate chip
+      // Activate chip and update model label from live dispatch data
       if (chipMap[agentName]) {
         Object.values(chipMap).forEach(c => c && c.classList.remove('active'));
-        chipMap[agentName].classList.add('active');
+        const chip = chipMap[agentName];
+        chip.classList.add('active');
+        // Update the displayed model name to reflect what actually ran
+        const shortName = agentName.replace('Agent', '');
+        chip.textContent = `${shortName}Agent · ${model}`;
       }
 
       const card = document.createElement('div');
@@ -2709,6 +2714,21 @@
 
     ${modelHtml ? `<div class="pm-section"><div class="pm-section-title">Agent Models Used</div><div class="pm-models">${modelHtml}</div></div>` : ''}
   `;
+      // Correct top-strip chips with actual models from postmortem result
+      const finalModels = pm.agent_models_used || {};
+      const chipModelMap = {
+        hypothesis: chipMap['HypothesisAgent'],
+        evidence:   chipMap['EvidenceAgent'],
+        root_cause: chipMap['RootCauseAgent'],
+        report:     chipMap['ReportAgent'],
+        critic:     chipMap['CriticAgent'],
+      };
+      Object.entries(chipModelMap).forEach(([role, chip]) => {
+        if (chip && finalModels[role]) {
+          const agentLabel = chip.textContent.split('·')[0].trim();
+          chip.textContent = `${agentLabel} · ${finalModels[role]}`;
+        }
+      });
       updateLedger({
         plan: 'Postmortem generated with owners, recurrence risk, and defensible savings',
         confidence: `${pm.confidence}% → report complete`,

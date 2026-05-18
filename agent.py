@@ -45,10 +45,13 @@ def _get_groq_client() -> Groq:
 # ---------------------------------------------------------------------------
 
 
-def _call_gemini_text(system: str, user: str, max_tokens: int = 500) -> str:
-    """Call gemini-2.5-flash for text reasoning. Returns response text.
+_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"]
 
-    Raises RuntimeError if GOOGLE_API_KEY is absent or the call fails,
+
+def _call_gemini_text(system: str, user: str, max_tokens: int = 500) -> str:
+    """Call Gemini for text reasoning, trying models in order until one succeeds.
+
+    Raises RuntimeError if GOOGLE_API_KEY is absent or all models fail,
     so CriticAgent can fall back to Groq cleanly.
     """
     api_key = os.getenv("GOOGLE_API_KEY")
@@ -61,18 +64,26 @@ def _call_gemini_text(system: str, user: str, max_tokens: int = 500) -> str:
         raise RuntimeError(
             "google-genai not installed. Run: pip install google-genai") from exc
     client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=user,
-        config=types.GenerateContentConfig(
-            system_instruction=system,
-            max_output_tokens=max_tokens,
-            temperature=0.5,
-        ),
-    )
-    if not response.text:
-        raise RuntimeError("Empty response from Gemini")
-    return response.text
+    last_exc: Exception = RuntimeError("No Gemini models tried")
+    for model in _GEMINI_MODELS:
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=user,
+                config=types.GenerateContentConfig(
+                    system_instruction=system,
+                    max_output_tokens=max_tokens,
+                    temperature=0.5,
+                ),
+            )
+            if not response.text:
+                raise RuntimeError(f"Empty response from {model}")
+            _log.warning("CriticAgent: Gemini model used: %s", model)
+            return response.text
+        except Exception as exc:
+            _log.warning("CriticAgent: %s failed (%s) — trying next", model, exc)
+            last_exc = exc
+    raise last_exc
 
 
 # ---------------------------------------------------------------------------

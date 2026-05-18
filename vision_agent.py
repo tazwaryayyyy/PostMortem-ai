@@ -74,18 +74,17 @@ class VisionAgent:
         """Lazy-init Google GenAI client — reads GOOGLE_API_KEY from env."""
         if self._client is None:
             try:
-                import google.generativeai as genai  # type: ignore
-                api_key = os.getenv("GOOGLE_API_KEY")
-                if not api_key:
-                    raise RuntimeError(
-                        "GOOGLE_API_KEY environment variable is not set.")
-                genai.configure(api_key=api_key)
-                self._client = genai.GenerativeModel("gemini-2.5-flash")
+                from google import genai  # type: ignore
             except ImportError as exc:
                 raise RuntimeError(
-                    "google-generativeai package not installed. "
-                    "Run: pip install google-generativeai"
+                    "google-genai package not installed. "
+                    "Run: pip install google-genai"
                 ) from exc
+            api_key = os.getenv("GOOGLE_API_KEY")
+            if not api_key:
+                raise RuntimeError(
+                    "GOOGLE_API_KEY environment variable is not set.")
+            self._client = genai.Client(api_key=api_key)
         return self._client
 
     def analyze(self, image_data: Union[bytes, str], mime_type: str = "image/png") -> dict:
@@ -111,23 +110,20 @@ class VisionAgent:
         else:
             image_bytes = image_data
 
+        from google.genai import types  # type: ignore
+
         client = self._get_client()
 
-        import google.generativeai as genai  # type: ignore
-
-        image_part = {
-            "inline_data": {
-                "mime_type": mime_type,
-                "data": base64.b64encode(image_bytes).decode("utf-8"),
-            }
-        }
-
-        response = client.generate_content(
-            [_ANALYSIS_PROMPT, image_part],
-            generation_config={
-                "temperature": 0.1,
-                "max_output_tokens": 1024,
-            },
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                _ANALYSIS_PROMPT,
+            ],
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+                max_output_tokens=1024,
+            ),
         )
 
         raw_text = response.text.strip()
@@ -165,16 +161,19 @@ class VisionAgent:
         Gemini is demonstrably active on all runs. Labelled as
         '\U0001f916 Gemini Visual Inference' in the UI.
         """
+        from google.genai import types  # type: ignore
+
         client = self._get_client()
         prompt = _TEXT_INFERENCE_PROMPT.format(
             signal_summary=signal_summary[:2000])
 
-        response = client.generate_content(
-            prompt,
-            generation_config={
-                "temperature": 0.2,
-                "max_output_tokens": 800,
-            },
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.2,
+                max_output_tokens=800,
+            ),
         )
 
         raw_text = response.text.strip()

@@ -39,7 +39,6 @@ def _get_groq_client() -> Groq:
 # ---------------------------------------------------------------------------
 # Gemini text helper — used exclusively by CriticAgent
 # ---------------------------------------------------------------------------
-_gemini_critic_model = None
 
 
 def _call_gemini_text(system: str, user: str, max_tokens: int = 500) -> str:
@@ -48,25 +47,26 @@ def _call_gemini_text(system: str, user: str, max_tokens: int = 500) -> str:
     Raises RuntimeError if GOOGLE_API_KEY is absent or the call fails,
     so CriticAgent can fall back to Groq cleanly.
     """
-    global _gemini_critic_model
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         raise RuntimeError("GOOGLE_API_KEY not set")
     try:
-        import google.generativeai as genai  # type: ignore
+        from google import genai  # type: ignore
+        from google.genai import types  # type: ignore
     except ImportError as exc:
-        raise RuntimeError("google-generativeai not installed") from exc
-    if _gemini_critic_model is None:
-        genai.configure(api_key=api_key)
-        _gemini_critic_model = genai.GenerativeModel(
-            "gemini-2.5-flash",
+        raise RuntimeError("google-genai not installed. Run: pip install google-genai") from exc
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=user,
+        config=types.GenerateContentConfig(
             system_instruction=system,
-        )
-    response = _gemini_critic_model.generate_content(
-        user,
-        generation_config={
-            "max_output_tokens": max_tokens, "temperature": 0.5},
+            max_output_tokens=max_tokens,
+            temperature=0.5,
+        ),
     )
+    if not response.text:
+        raise RuntimeError("Empty response from Gemini")
     return response.text
 
 

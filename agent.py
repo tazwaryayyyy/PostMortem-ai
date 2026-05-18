@@ -47,10 +47,8 @@ def _get_groq_client() -> Groq:
 
 # Ordered by preference; older models have much higher free-tier quotas (1500 RPD vs 20 RPD)
 _GEMINI_MODELS = [
-    "gemini-1.5-flash",       # 1500 req/day free tier — most reliable for demos
-    "gemini-1.5-flash-8b",   # 1500 req/day free tier — backup
-    "gemini-2.0-flash",       # 200 req/day free tier
-    "gemini-2.5-flash",       # 20 req/day free tier — last resort (best quality)
+    "gemini-2.0-flash",   # ~500 req/day free tier, available in v1beta
+    "gemini-2.5-flash",   # 20 req/day — best quality, last resort
 ]
 
 

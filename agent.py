@@ -54,7 +54,8 @@ def _call_gemini_text(system: str, user: str, max_tokens: int = 500) -> str:
         from google import genai  # type: ignore
         from google.genai import types  # type: ignore
     except ImportError as exc:
-        raise RuntimeError("google-genai not installed. Run: pip install google-genai") from exc
+        raise RuntimeError(
+            "google-genai not installed. Run: pip install google-genai") from exc
     client = genai.Client(api_key=api_key)
     response = client.models.generate_content(
         model="gemini-2.5-flash",
@@ -434,6 +435,7 @@ class PostMortemCoordinator:
         self.timeline: list[dict] = []
         self.vision_findings: dict | None = vision_findings
         self.report_markdown: str = ""
+        self._critic_model_used: str = "qwen-qwen3-32b"  # updated after CriticAgent runs
 
         self._hypothesis_agent = HypothesisAgent()
         self._evidence_agent = EvidenceAgent()
@@ -763,6 +765,7 @@ class PostMortemCoordinator:
                     self._critic_agent.run,
                     root_cause_data, self.evidence, self.token_key,
                 )
+                self._critic_model_used = critic_result.get("_critic_model", "qwen-qwen3-32b")
                 agrees = critic_result.get("agrees", True)
                 counterargs = critic_result.get("counterarguments", [])
                 critic_says = (
@@ -960,7 +963,7 @@ class PostMortemCoordinator:
                 "evidence": "llama-3.1-8b-instant",
                 "root_cause": "llama-3.3-70b-versatile",
                 "report": "compound-beta",
-                "critic": "qwen-qwen3-32b",
+                "critic": self._critic_model_used,
             },
             "token_count": token_count,
         }

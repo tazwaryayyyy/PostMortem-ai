@@ -13,9 +13,9 @@ from incident_generator import generate_incident
 from agent import PostMortemCoordinator
 from pydantic import BaseModel, ConfigDict
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from dotenv import load_dotenv
 import asyncio
 import base64
@@ -337,7 +337,7 @@ async def investigation_metrics():
     load_incidents()
     total_impact = 0
     durations: list[int] = []
-    for iid, data in INCIDENTS.items():
+    for _, data in INCIDENTS.items():
         impact = data.get("impact", {})
         rev = impact.get("revenue_impact", "")
         if isinstance(rev, str):

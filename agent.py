@@ -25,8 +25,6 @@ from typing import AsyncGenerator
 _log = logging.getLogger(__name__)
 
 
-from prompts import SYSTEM_PROMPT  # noqa: F401
-
 # ---------------------------------------------------------------------------
 # Groq client — lazy-initialised
 # ---------------------------------------------------------------------------

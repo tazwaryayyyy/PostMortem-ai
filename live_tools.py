@@ -12,6 +12,7 @@ Include in FastAPI app with:  app.include_router(router)
 """
 
 import math
+import os
 import random
 import time
 import uuid
@@ -19,8 +20,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 import json
 
+import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+# Real GitHub repo to pull live commits from (public — no auth required)
+_GITHUB_REPO = os.getenv("GITHUB_REPO", "tazwaryayyyy/PostMortem-ai")
 
 router = APIRouter(prefix="/tools", tags=["Live Tool APIs"])
 
@@ -212,32 +217,99 @@ def query_metrics(req: MetricsRequest) -> dict:
     }
 
 
+# ── GitHub live commit fetcher ────────────────────────────────────────────
+
+def _fetch_real_commits(incident_start: str) -> list[dict]:
+    """Fetch the 15 most recent commits from the real GitHub repo.
+
+    Returns a list of annotated commit dicts on success, empty list on any failure.
+    No auth token required — public repo, unauthenticated tier is fine for demo use.
+    """
+    try:
+        with httpx.Client(timeout=3.0) as client:
+            resp = client.get(
+                f"https://api.github.com/repos/{_GITHUB_REPO}/commits",
+                params={"per_page": 15},
+                headers={"Accept": "application/vnd.github+json"},
+            )
+            if resp.status_code != 200:
+                return []
+            raw = resp.json()
+    except Exception:
+        return []
+
+    results: list[dict] = []
+    for item in raw:
+        commit_data = item.get("commit", {})
+        author = commit_data.get("author", {})
+        ts = author.get("date", "")
+        message = commit_data.get("message", "").splitlines()[
+            0]  # first line only
+        sha = item.get("sha", "")[:8]
+
+        enriched: dict = {
+            "sha": sha,
+            "message": message,
+            "author": author.get("name", "unknown"),
+            "timestamp": ts,
+            "repo": _GITHUB_REPO,
+            "url": item.get("html_url", ""),
+            "source": "github_live_api",
+        }
+
+        # time_before_incident annotation
+        try:
+            ts_dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            inc_dt = datetime.fromisoformat(
+                incident_start.replace("Z", "+00:00"))
+            delta = int((inc_dt - ts_dt).total_seconds() / 60)
+            enriched["time_before_incident"] = (
+                f"{delta} minutes before first alert" if delta > 0 else "after incident start"
+            )
+        except Exception:
+            enriched["time_before_incident"] = "recent"
+
+        enriched["high_risk"] = any(p in message.lower()
+                                    for p in _HIGH_RISK_PATTERNS)
+        results.append(enriched)
+
+    return results
+
+
 # ── POST /tools/github ────────────────────────────────────────────────────
 
 @router.post(
     "/github",
-    summary="Dynamic GitHub query — annotates commits with risk level and incident timing",
+    summary="Dynamic GitHub query — real commits from live repo + incident signals",
 )
 def query_github(req: GithubRequest) -> dict:
     """
-    Return filtered commits annotated with:
-    - time_before_incident (e.g. '47 minutes before first alert')
-    - high_risk flag for commits touching config / deploy / infra files
+    Returns commits from two sources merged together:
+    1. Real GitHub API commits from the live repo (github_live_api)
+    2. Incident-scenario commits from the signal JSON (live_tools_api)
+
+    Both are annotated with time_before_incident and high_risk flag.
+    Real commits appear first so they are visible in DevTools.
+    Falls back to incident-only if the GitHub API is unavailable.
     """
     t0 = time.perf_counter()
     incident = _load_incident(req.incident_id)
     if incident is None:
         raise HTTPException(
             status_code=404, detail=f"Incident '{req.incident_id}' not found")
-    commits = [
+
+    incident_start = incident.get("start_time", "")
+
+    # --- Real commits from live GitHub repo ---
+    real_commits = _fetch_real_commits(incident_start)
+
+    # --- Incident scenario commits ---
+    scenario_commits = [
         c for c in incident.get("signals", {}).get("github", [])
         if c.get("repo") == req.repo
     ]
-    incident_start = incident.get("start_time", "")
-    risk_commits: list[dict] = []
-    annotated: list[dict] = []
-
-    for commit in commits:
+    annotated_scenario: list[dict] = []
+    for commit in scenario_commits:
         enriched = dict(commit)
         try:
             ts = datetime.fromisoformat(
@@ -250,22 +322,23 @@ def query_github(req: GithubRequest) -> dict:
             )
         except Exception:
             enriched["time_before_incident"] = "unknown"
-
-        text = (
-            commit.get("message", "") + " " +
-            " ".join(commit.get("files_changed", []))
-        ).lower()
+        text = (commit.get("message", "") + " " +
+                " ".join(commit.get("files_changed", []))).lower()
         enriched["high_risk"] = any(p in text for p in _HIGH_RISK_PATTERNS)
-        if enriched["high_risk"]:
-            risk_commits.append(enriched)
-        annotated.append(enriched)
+        enriched.setdefault("source", "live_tools_api")
+        annotated_scenario.append(enriched)
+
+    # Real commits first so they appear at the top in DevTools
+    all_commits = real_commits + annotated_scenario
+    risk_commits = [c for c in all_commits if c.get("high_risk")]
 
     return {
-        "commits": annotated,
+        "commits": all_commits,
         "risk_commits": risk_commits,
-        "deploy_count": len(annotated),
+        "deploy_count": len(all_commits),
+        "real_commit_count": len(real_commits),
         "query_time_ms": int((time.perf_counter() - t0) * 1000),
-        "source": "live_tools_api",
+        "source": "github_live_api" if real_commits else "live_tools_api",
         "incident_id": req.incident_id,
     }
 

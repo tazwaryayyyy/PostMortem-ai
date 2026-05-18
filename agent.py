@@ -377,11 +377,17 @@ class CriticAgent:
         # --- Primary: Gemini 2.5 Flash (cross-provider — genuinely independent) ---
         try:
             content = _call_gemini_text(self.SYSTEM, prompt, max_tokens=500)
-            # Gemini often wraps JSON in markdown code blocks — strip them
+            # Gemini often wraps JSON in markdown code blocks or adds prose — strip both
             _text = content.strip()
             if _text.startswith("```"):
                 _text = re.sub(r"^```[a-zA-Z]*\s*\n?", "", _text)
                 _text = re.sub(r"\n?```\s*$", "", _text).strip()
+            # Slice to the outermost JSON object, dropping any leading/trailing text
+            _start = _text.find("{")
+            _end = _text.rfind("}") + 1
+            if _start != -1 and _end > _start:
+                _text = _text[_start:_end]
+            _log.warning("CriticAgent: Gemini raw (trimmed): %s", _text[:300])
             result = json.loads(_text)
             result["_critic_model"] = "gemini-2.5-flash"
             return result

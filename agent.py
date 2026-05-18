@@ -11,10 +11,13 @@ Architecture: PostMortemCoordinator dispatches to specialist agents:
 
 import asyncio
 import json
+import logging
 import os
 import time
 from enum import Enum
 from typing import AsyncGenerator
+
+_log = logging.getLogger(__name__)
 
 import httpx
 from groq import Groq
@@ -376,8 +379,12 @@ class CriticAgent:
             result = json.loads(content)
             result["_critic_model"] = "gemini-2.5-flash"
             return result
-        except Exception:
-            pass  # fall through to Groq
+        except Exception as _gemini_exc:
+            _log.warning(
+                "CriticAgent: Gemini call failed (%s: %s) — falling back to Groq",
+                type(_gemini_exc).__name__,
+                _gemini_exc,
+            )
 
         # --- Fallback: Groq qwen-qwen3-32b ---
         try:

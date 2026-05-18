@@ -1882,50 +1882,68 @@
 
     @media print {
 
-      /* Hide everything except the postmortem report panel */
-      body * {
-        visibility: hidden;
+      /* Reset page layout — no grid, no dark background */
+      html, body {
+        background: #fff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
       }
 
-      #postmortem-panel,
-      #postmortem-panel * {
-        visibility: visible;
+      /* Hide every #app child except <main> */
+      #app > *:not(main) { display: none !important; }
+
+      /* Reset main from CSS grid to simple block */
+      main {
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
       }
 
+      /* Hide every panel except the post-mortem one */
+      main > *:not(#panel-postmortem) { display: none !important; }
+
+      /* Strip panel chrome */
+      #panel-postmortem {
+        display: block !important;
+        border: none !important;
+        border-radius: 0 !important;
+        background: #fff !important;
+        height: auto !important;
+        overflow: visible !important;
+        padding: 0 !important;
+      }
+      #panel-postmortem > .panel-header { display: none !important; }
+      #pm-toolbar { display: none !important; }
+
+      /* Post-mortem content */
       #postmortem-panel {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: auto;
-        background: #fff;
-        color: #111;
-        padding: 32px;
-        font-family: Georgia, serif;
-        font-size: 13px;
-        line-height: 1.7;
+        display: block !important;
+        background: #fff !important;
+        color: #111 !important;
+        padding: 32px !important;
+        font-family: Georgia, serif !important;
+        font-size: 13px !important;
+        line-height: 1.7 !important;
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: visible !important;
       }
 
       /* Reset dark-mode colours for print */
       #postmortem-panel .pm-section-title {
-        color: #111;
-        border-color: #ccc;
+        color: #111 !important;
+        border-color: #ccc !important;
       }
-
       #postmortem-panel .badge,
       #postmortem-panel .model-chip {
-        background: #eee;
-        color: #111;
+        background: #eee !important;
+        color: #111 !important;
       }
-
-      #postmortem-panel a {
-        color: #111;
-      }
-
-      /* Hide the toolbar buttons inside the panel if any */
-      #pm-toolbar {
-        display: none !important;
-      }
+      #postmortem-panel a { color: #111 !important; }
     }
   </style>
 </head>

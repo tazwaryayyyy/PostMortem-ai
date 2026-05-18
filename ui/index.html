@@ -1879,6 +1879,53 @@
       color: var(--text-dim);
       margin-top: 3px;
     }
+
+    @media print {
+
+      /* Hide everything except the postmortem report panel */
+      body * {
+        visibility: hidden;
+      }
+
+      #postmortem-panel,
+      #postmortem-panel * {
+        visibility: visible;
+      }
+
+      #postmortem-panel {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background: #fff;
+        color: #111;
+        padding: 32px;
+        font-family: Georgia, serif;
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      /* Reset dark-mode colours for print */
+      #postmortem-panel .pm-section-title {
+        color: #111;
+        border-color: #ccc;
+      }
+
+      #postmortem-panel .badge,
+      #postmortem-panel .model-chip {
+        background: #eee;
+        color: #111;
+      }
+
+      #postmortem-panel a {
+        color: #111;
+      }
+
+      /* Hide the toolbar buttons inside the panel if any */
+      #pm-toolbar {
+        display: none !important;
+      }
+    }
   </style>
 </head>
 
@@ -2031,6 +2078,8 @@
         <div id="pm-toolbar" class="pm-toolbar" style="display:none">
           <button class="btn btn-ghost" id="btn-export-md" disabled style="font-size:10px;padding:4px 10px">⬇ Export
             Markdown</button>
+          <button class="btn btn-ghost" id="btn-export-pdf" disabled style="font-size:10px;padding:4px 10px">⬇ Export
+            PDF</button>
         </div>
         <div class="panel-body" id="postmortem-panel">
           <div class="empty-state">
@@ -2198,6 +2247,7 @@
     const timelineStrip = document.getElementById('timeline-strip');
     const pmToolbar = document.getElementById('pm-toolbar');
     const btnExportMd = document.getElementById('btn-export-md');
+    const btnExportPdf = document.getElementById('btn-export-pdf');
     const dropZone = document.getElementById('drop-zone');
     const screenshotInput = document.getElementById('screenshot-input');
     const visualBadge = document.getElementById('visual-badge');
@@ -2295,6 +2345,7 @@
       pmToolbar.style.display = 'none';
       visualBadge.style.display = 'none';
       btnExportMd.disabled = true;
+      btnExportPdf.disabled = true;
       currentConfidence = 0;
       confMeterFill.style.width = '0%';
       confMeterValue.textContent = '0%';
@@ -2759,6 +2810,12 @@
       scrollBottom(hypBoard);
     }
 
+    // ── Export PDF (print-to-PDF via browser print dialog) ───────────────────
+    btnExportPdf.addEventListener('click', () => {
+      if (!postmortemData) return;
+      window.print();
+    });
+
     // ── Governance Gate ────────────────────────────────────────────────────────
     function showGovernanceGate(data) {
       gateRootCause.textContent = data.root_cause || data.message;
@@ -3063,6 +3120,7 @@
         case 'postmortem':
           renderPostmortem(e.data);
           btnExportMd.disabled = false;
+          btnExportPdf.disabled = false;
           setStateBadge('COMPLETE');
           addTrace('confirm', 'POST-MORTEM GENERATED', 'Report complete. Investigation closed.');
           stopTimer();

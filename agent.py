@@ -71,6 +71,61 @@ def _call_gemini_text(system: str, user: str, max_tokens: int = 500) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Vultr Serverless Inference — primary provider (OpenAI-compatible)
+# Falls back to Groq if VULTR_API_KEY is not set or the call fails.
+# ---------------------------------------------------------------------------
+_VULTR_INFERENCE_URL = os.getenv(
+    "VULTR_INFERENCE_URL",
+    "https://api.vultrinference.com/v1/chat/completions",
+)
+
+# Groq model name → Vultr Serverless Inference model name
+_VULTR_MODEL_MAP: dict[str, str] = {
+    "llama-3.3-70b-versatile":                 "llama-3.1-70b-instruct-fp8",
+    "meta-llama/llama-4-scout-17b-16e-instruct": "llama-3.1-70b-instruct-fp8",
+    "llama-3.1-8b-instant":                    "llama-3.1-8b-instruct-fp8",
+    "compound-beta":                           "llama-3.1-70b-instruct-fp8",
+    "qwen-qwen3-32b":                          "llama-3.1-70b-instruct-fp8",
+}
+
+
+def _try_vultr_inference(
+    messages: list[dict],
+    model: str,
+    temperature: float,
+    max_tokens: int,
+) -> str | None:
+    """Try Vultr Serverless Inference. Returns content string, or None on any failure.
+
+    None signals the caller to fall through to Groq.
+    """
+    api_key = os.getenv("VULTR_API_KEY")
+    if not api_key:
+        return None
+    vultr_model = _VULTR_MODEL_MAP.get(model, "llama-3.1-70b-instruct-fp8")
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(
+                _VULTR_INFERENCE_URL,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": vultr_model,
+                    "messages": messages,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                },
+            )
+        if resp.status_code != 200:
+            return None
+        return resp.json()["choices"][0]["message"]["content"] or ""
+    except Exception:
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Model fallback chain
 # ---------------------------------------------------------------------------
 _MODEL_CHAIN_PRIMARY = [
@@ -106,7 +161,14 @@ def _chat_with_fallback(
     max_tokens: int = 1024,
     investigation_id: str | None = None,
 ) -> str:
-    """Call Groq with exponential backoff + model fallback. Returns content string."""
+    """Call Vultr Serverless Inference (primary) then Groq (fallback). Returns content string."""
+    # --- Primary: Vultr Serverless Inference ---
+    vultr_result = _try_vultr_inference(
+        messages, model_chain[0], temperature, max_tokens)
+    if vultr_result is not None:
+        return vultr_result
+
+    # --- Fallback: Groq with exponential backoff + model chain ---
     client = _get_groq_client()
     last_exc: Exception | None = None
 

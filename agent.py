@@ -47,11 +47,10 @@ def _get_groq_client() -> Groq:
 
 # Ordered by preference; older models have much higher free-tier quotas (1500 RPD vs 20 RPD)
 _GEMINI_MODELS = [
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",       # 1500 req/day free tier
-    "gemini-1.5-flash-8b",   # 1500 req/day free tier
+    "gemini-1.5-flash",       # 1500 req/day free tier — most reliable for demos
+    "gemini-1.5-flash-8b",   # 1500 req/day free tier — backup
+    "gemini-2.0-flash",       # 200 req/day free tier
+    "gemini-2.5-flash",       # 20 req/day free tier — last resort (best quality)
 ]
 
 
@@ -90,7 +89,8 @@ def _call_gemini_text(system: str, user: str, max_tokens: int = 500) -> tuple[st
             return response.text, model
         except Exception as exc:
             _log.warning(
-                "CriticAgent: %s failed (%s) — trying next", model, exc)
+                "CriticAgent: %s failed (%s: %s) — trying next",
+                model, type(exc).__name__, str(exc)[:120])
             last_exc = exc
     raise last_exc
 

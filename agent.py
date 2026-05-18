@@ -415,6 +415,10 @@ class CriticAgent:
             _end = _text.rfind("}") + 1
             if _start != -1 and _end > _start:
                 _text = _text[_start:_end]
+            # Normalize Python literals that Gemini sometimes emits
+            _text = re.sub(r'\bNone\b', 'null', _text)
+            _text = re.sub(r'\bTrue\b', 'true', _text)
+            _text = re.sub(r'\bFalse\b', 'false', _text)
             _log.warning("CriticAgent: Gemini raw (trimmed): %s", _text[:300])
             result = json.loads(_text)
             result["_critic_model"] = _gemini_model

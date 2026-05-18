@@ -1883,7 +1883,8 @@
     @media print {
 
       /* Reset page layout — no grid, no dark background */
-      html, body {
+      html,
+      body {
         background: #fff !important;
         margin: 0 !important;
         padding: 0 !important;
@@ -1892,7 +1893,9 @@
       }
 
       /* Hide every #app child except <main> */
-      #app > *:not(main) { display: none !important; }
+      #app>*:not(main) {
+        display: none !important;
+      }
 
       /* Reset main from CSS grid to simple block */
       main {
@@ -1904,7 +1907,9 @@
       }
 
       /* Hide every panel except the post-mortem one */
-      main > *:not(#panel-postmortem) { display: none !important; }
+      main>*:not(#panel-postmortem) {
+        display: none !important;
+      }
 
       /* Strip panel chrome */
       #panel-postmortem {
@@ -1916,8 +1921,14 @@
         overflow: visible !important;
         padding: 0 !important;
       }
-      #panel-postmortem > .panel-header { display: none !important; }
-      #pm-toolbar { display: none !important; }
+
+      #panel-postmortem>.panel-header {
+        display: none !important;
+      }
+
+      #pm-toolbar {
+        display: none !important;
+      }
 
       /* Post-mortem content */
       #postmortem-panel {
@@ -1938,12 +1949,16 @@
         color: #111 !important;
         border-color: #ccc !important;
       }
+
       #postmortem-panel .badge,
       #postmortem-panel .model-chip {
         background: #eee !important;
         color: #111 !important;
       }
-      #postmortem-panel a { color: #111 !important; }
+
+      #postmortem-panel a {
+        color: #111 !important;
+      }
     }
   </style>
 </head>
@@ -2832,7 +2847,52 @@
     // ── Export PDF (print-to-PDF via browser print dialog) ───────────────────
     btnExportPdf.addEventListener('click', () => {
       if (!postmortemData) return;
-      window.print();
+      const panel = document.getElementById('postmortem-panel');
+      const incidentId = postmortemData.incident_id || 'report';
+      const w = window.open('', '_blank', 'width=920,height=700');
+      if (!w) return;
+      w.document.write(`<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>PostMortem \u2014 ${incidentId}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Georgia,serif;font-size:13px;line-height:1.75;color:#111;background:#fff;padding:40px 48px}
+.spinner{display:none}
+.pm-section{margin-bottom:20px}
+.pm-section-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#666;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.pm-section-title::after{content:'';flex:1;height:1px;background:#ddd}
+.pm-root-cause{padding:10px 14px;background:#f6faf8;border:1px solid #c6e6d8;border-radius:4px;font-size:12px;line-height:1.65}
+.pm-confidence{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:10px;color:#27a06a}
+.pm-impact-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.pm-impact-card{padding:8px 10px;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:4px}
+.pm-impact-label{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px}
+.pm-impact-value{font-size:14px;font-weight:700;font-family:monospace;color:#111}
+.pm-impact-value.severity-p1{color:#c0392b}
+.pm-detection-gap{padding:8px 10px;background:#fefdf0;border:1px solid #e8d44d;border-radius:4px;font-size:11px;color:#555;line-height:1.6;margin-top:6px}
+.pm-evidence-table{display:grid;gap:4px}
+.pm-evidence-row{display:grid;grid-template-columns:100px 1fr 110px;gap:6px;padding:7px 8px;border:1px solid #e5e5e5;border-radius:4px;font-size:10px;line-height:1.4}
+.pm-evidence-source{color:#2980b9;font-weight:700}
+.pm-evidence-effect{color:#27ae60;text-transform:uppercase;font-size:8px;letter-spacing:.7px}
+.pm-rejected-item{padding:6px 10px;background:#fef5f5;border-left:2px solid #e74c3c;border-radius:0 4px 4px 0;font-size:10.5px;color:#555;line-height:1.5;margin-bottom:4px}
+.pm-visual-decision{font-size:11px;color:#444;line-height:1.6}
+.pm-contrib{display:flex;flex-wrap:wrap;gap:4px}
+.contrib-chip{font-size:9px;padding:2px 8px;border-radius:100px;background:#e8f4fd;border:1px solid #aed6f1;color:#2980b9}
+.pm-action-item{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid #eee;font-size:11px;color:#222;line-height:1.5}
+.pm-action-item:last-child{border-bottom:none}
+.action-num{font-size:9px;font-weight:700;color:#27ae60;padding-top:2px;flex-shrink:0}
+.pm-owner-item{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid #eee;font-size:11px}
+.pm-owner-item:last-child{border-bottom:none}
+.pm-owner-name{font-weight:700;min-width:140px;color:#333;flex-shrink:0}
+.pm-risk-card{padding:9px 10px;border-radius:4px;border:1px solid #e8d44d;background:#fefdf0;font-size:11px;line-height:1.5}
+.pm-risk-score{font-size:20px;font-weight:700;margin-right:6px}
+.pm-models{display:flex;flex-wrap:wrap;gap:4px}
+.pm-model-chip{font-size:9px;padding:2px 8px;border-radius:100px;background:#f0f0f0;border:1px solid #ddd;color:#555}
+@media print{body{padding:32px}}
+</style>
+</head><body>${panel.innerHTML}</body></html>`);
+      w.document.close();
+      w.focus();
+      setTimeout(() => w.print(), 500);
     });
 
     // ── Governance Gate ────────────────────────────────────────────────────────

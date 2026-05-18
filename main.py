@@ -5,6 +5,18 @@ Run locally:  uvicorn main:app --reload --port 8000
 Deploy Vultr: uvicorn main:app --host 0.0.0.0 --port 8000
 """
 
+from vision_agent import get_vision_agent
+from mock_apis import INCIDENTS, load_incidents
+from live_tools import router as tools_router
+from investigation_store import get_history, get_metrics_summary, save_investigation
+from incident_generator import generate_incident
+from agent import PostMortemCoordinator
+from pydantic import BaseModel, ConfigDict
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from dotenv import load_dotenv
 import asyncio
 import base64
 import json
@@ -23,19 +35,6 @@ logging.basicConfig(
     stream=sys.stderr,
 )
 
-from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict
-
-from agent import PostMortemCoordinator
-from incident_generator import generate_incident
-from investigation_store import get_history, get_metrics_summary, save_investigation
-from live_tools import router as tools_router
-from mock_apis import INCIDENTS, load_incidents
-from vision_agent import get_vision_agent
 
 load_dotenv()
 

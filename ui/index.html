@@ -2718,10 +2718,10 @@
       const finalModels = pm.agent_models_used || {};
       const chipModelMap = {
         hypothesis: chipMap['HypothesisAgent'],
-        evidence:   chipMap['EvidenceAgent'],
+        evidence: chipMap['EvidenceAgent'],
         root_cause: chipMap['RootCauseAgent'],
-        report:     chipMap['ReportAgent'],
-        critic:     chipMap['CriticAgent'],
+        report: chipMap['ReportAgent'],
+        critic: chipMap['CriticAgent'],
       };
       Object.entries(chipModelMap).forEach(([role, chip]) => {
         if (chip && finalModels[role]) {

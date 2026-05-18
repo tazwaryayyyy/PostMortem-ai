@@ -114,6 +114,13 @@ _VULTR_MODEL_MAP: dict[str, str] = {
 }
 
 
+def _dispatch_model(groq_model: str) -> str:
+    """Return the model label for SSE dispatch events — Vultr name when active."""
+    if os.getenv("VULTR_API_KEY"):
+        return _VULTR_MODEL_MAP.get(groq_model, groq_model)
+    return groq_model
+
+
 def _try_vultr_inference(
     messages: list[dict],
     model: str,
@@ -396,7 +403,8 @@ class CriticAgent:
         )
         # --- Primary: Gemini 2.5 Flash (cross-provider — genuinely independent) ---
         try:
-            content, _gemini_model = _call_gemini_text(self.SYSTEM, prompt, max_tokens=1024)
+            content, _gemini_model = _call_gemini_text(
+                self.SYSTEM, prompt, max_tokens=1024)
             # Gemini often wraps JSON in markdown code blocks or adds prose — strip both
             _text = content.strip()
             if _text.startswith("```"):
@@ -604,7 +612,7 @@ class PostMortemCoordinator:
             "agent_dispatch",
             agent_name="HypothesisAgent",
             task="Generate and rank hypotheses from incident signals",
-            model="llama-3.3-70b-versatile",
+            model=_dispatch_model("llama-3.3-70b-versatile"),
         )
         await asyncio.sleep(0.3)
 
@@ -684,7 +692,7 @@ class PostMortemCoordinator:
                     "agent_dispatch",
                     agent_name="EvidenceAgent",
                     task=f"Evaluate {tool_name} result against hypothesis",
-                    model="llama-3.1-8b-instant",
+                    model=_dispatch_model("llama-3.1-8b-instant"),
                 )
                 await asyncio.sleep(0.2)
 
@@ -760,7 +768,7 @@ class PostMortemCoordinator:
                     "agent_dispatch",
                     agent_name="RootCauseAgent",
                     task="Synthesize evidence into root cause determination",
-                    model="llama-3.3-70b-versatile",
+                    model=_dispatch_model("llama-3.3-70b-versatile"),
                 )
                 await asyncio.sleep(0.5)
 
@@ -874,7 +882,7 @@ class PostMortemCoordinator:
             "agent_dispatch",
             agent_name="ReportAgent",
             task="Write structured post-mortem report",
-            model="compound-beta",
+            model=_dispatch_model("compound-beta"),
         )
         await asyncio.sleep(0.3)
 
@@ -999,10 +1007,14 @@ class PostMortemCoordinator:
             "detection_gap": self.incident.get("detection_gap", ""),
             "contributing_factors": self.incident.get("contributing_factors", []),
             "agent_models_used": {
-                "hypothesis": "llama-3.3-70b-versatile",
-                "evidence": "llama-3.1-8b-instant",
-                "root_cause": "llama-3.3-70b-versatile",
-                "report": "compound-beta",
+                "hypothesis": _VULTR_MODEL_MAP.get("llama-3.3-70b-versatile", "llama-3.3-70b-versatile")
+                if os.getenv("VULTR_API_KEY") else "llama-3.3-70b-versatile",
+                "evidence": _VULTR_MODEL_MAP.get("llama-3.1-8b-instant", "llama-3.1-8b-instant")
+                if os.getenv("VULTR_API_KEY") else "llama-3.1-8b-instant",
+                "root_cause": _VULTR_MODEL_MAP.get("llama-3.3-70b-versatile", "llama-3.3-70b-versatile")
+                if os.getenv("VULTR_API_KEY") else "llama-3.3-70b-versatile",
+                "report": _VULTR_MODEL_MAP.get("compound-beta", "compound-beta")
+                if os.getenv("VULTR_API_KEY") else "compound-beta",
                 "critic": self._critic_model_used,
             },
             "token_count": token_count,

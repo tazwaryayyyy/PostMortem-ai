@@ -14,7 +14,7 @@
 
 PostMortem.ai runs a production incident through six specialist agents in about 93 seconds and produces a structured postmortem, including a live argument between two agents using different model architectures.
 
-The system is designed to be wrong first. The first hypothesis is always a deliberate red herring -- something plausible that the evidence chain must disprove before moving on. The CriticAgent runs on **Gemini 2.5 Flash** (Google), a completely different provider from the rest of the pipeline (Groq), so it has no shared reasoning context to agree with. It only sees the conclusion and the evidence, and it is prompted to find holes.
+The system is designed to be wrong first. The first hypothesis is always a deliberate red herring -- something plausible that the evidence chain must disprove before moving on. The CriticAgent runs on **Gemini** (Google), a completely different provider from the rest of the pipeline (Vultr Serverless Inference / Groq), so it has no shared reasoning context to agree with. It only sees the conclusion and the evidence, and it is prompted to find holes.
 
 ## Grand Prize Story
 
@@ -30,7 +30,7 @@ PostMortem.ai targets the **Agentic Workflows**, **Collaborative Systems**, **En
 - **Agentic workflow:** plans an investigation, selects tools, calls APIs, evaluates evidence, and changes course when confidence is low.
 - **Collaborative system:** HypothesisAgent, EvidenceAgent, RootCauseAgent, CriticAgent, ReportAgent, and VisionAgent coordinate through streamed state.
 - **Enterprise utility:** replaces repetitive incident-review labor and produces buyer-ready artifacts for SRE managers.
-- **Multimodal intelligence:** Gemini 2.5 Flash serves dual roles — it turns screenshots or inferred dashboard patterns into contradiction checks against text evidence, **and** acts as the adversarial CriticAgent challenging the Groq-based root cause conclusion from a completely independent inference stack.
+- **Multimodal intelligence:** Gemini 2.5 Flash serves dual roles — it turns screenshots or inferred dashboard patterns into contradiction checks against text evidence, **and** acts as the adversarial CriticAgent challenging the Vultr/Groq-based root cause conclusion from a completely independent inference stack.
 - **Vultr production deployment:** FastAPI + Docker Compose on a Vultr VM, nginx reverse proxy, health endpoint, and persistent SQLite history.
 
 ## Quick Start
@@ -79,18 +79,18 @@ postmortem-ai/
 +-- requirements.txt
 ```
 
-EvidenceAgent runs on `llama-3.1-8b-instant` because it executes in a tight loop -- one call per tool result per hypothesis -- so speed matters more than reasoning depth at that stage. HypothesisAgent and RootCauseAgent use `llama-3.3-70b-versatile` because hypothesis generation and synthesis are the two steps where reasoning quality directly affects whether the agent reaches the correct conclusion. ReportAgent uses `compound-beta` because it specializes in structured output, which produces cleaner markdown sections than a general-purpose model. CriticAgent uses **Google Gemini 2.5 Flash** specifically because it is a different provider and model family from the rest of the Groq-based pipeline: an adversarial critic from a completely independent inference stack cannot share implicit reasoning biases with the chain it is challenging.
+EvidenceAgent runs on `llama-3.1-8b-instant` because it executes in a tight loop -- one call per tool result per hypothesis -- so speed matters more than reasoning depth at that stage. HypothesisAgent and RootCauseAgent use `llama-3.3-70b-versatile` because hypothesis generation and synthesis are the two steps where reasoning quality directly affects whether the agent reaches the correct conclusion. ReportAgent uses `compound-beta` because it specializes in structured output, which produces cleaner markdown sections than a general-purpose model. CriticAgent uses **Google Gemini** (tries `gemini-2.0-flash` first, then `gemini-2.5-flash`, falls back to Groq `qwen-qwen3-32b`) specifically because it is a different provider and model family from the rest of the pipeline: an adversarial critic from a completely independent inference stack cannot share implicit reasoning biases with the chain it is challenging. All Llama-based agents use **Vultr Serverless Inference** as primary (when `VULTR_API_KEY` is set), with Groq as fallback.
 
-| Agent           | Model                    | Role                                              |
-|-----------------|--------------------------|---------------------------------------------------|
-| HypothesisAgent | llama-3.3-70b-versatile  | Generate and rank hypotheses from signals         |
-| EvidenceAgent   | llama-3.1-8b-instant     | Evaluate each tool result against a hypothesis    |
-| RootCauseAgent  | llama-3.3-70b-versatile  | Synthesize confirmed evidence into root cause     |
-| CriticAgent     | gemini-2.5-flash (Google)| Challenge the root cause conclusion independently |
-| ReportAgent     | compound-beta            | Write the final structured post-mortem            |
-| VisionAgent     | gemini-2.5-flash         | Analyze screenshots or infer visual patterns      |
+| Agent           | Model                                              | Role                                              |
+|-----------------|-----------------------------------------------------|---------------------------------------------------|
+| HypothesisAgent | llama-3.1-70b-instruct-fp8 (Vultr) / llama-3.3-70b-versatile (Groq) | Generate and rank hypotheses from signals |
+| EvidenceAgent   | llama-3.1-8b-instruct-fp8 (Vultr) / llama-3.1-8b-instant (Groq) | Evaluate each tool result against a hypothesis |
+| RootCauseAgent  | llama-3.1-70b-instruct-fp8 (Vultr) / llama-3.3-70b-versatile (Groq) | Synthesize confirmed evidence into root cause |
+| CriticAgent     | gemini-2.0-flash → gemini-2.5-flash → qwen-qwen3-32b (Groq fallback) | Challenge the root cause conclusion independently |
+| ReportAgent     | llama-3.1-70b-instruct-fp8 (Vultr) / compound-beta (Groq) | Write the final structured post-mortem |
+| VisionAgent     | gemini-2.5-flash                                    | Analyze screenshots or infer visual patterns      |
 
-All Groq models use a silent fallback chain: `llama-3.3-70b-versatile` then `llama-4-scout-17b` then `llama-3.1-8b-instant`.
+Vultr Serverless Inference is the primary provider for all Llama-based agents when `VULTR_API_KEY` is set. Groq is the automatic fallback. The Groq fallback chain: `llama-3.3-70b-versatile` → `llama-4-scout-17b` → `llama-3.1-8b-instant`.
 
 ## The Numbers
 
@@ -119,8 +119,9 @@ pip install -r requirements.txt
 ```bash
 cp .env.example .env
 # Edit .env and add:
-# GROQ_API_KEY=your_groq_key     (required -- all text agents)
-# GOOGLE_API_KEY=your_gemini_key (required -- VisionAgent + CriticAgent)
+# GROQ_API_KEY=your_groq_key       (required -- Llama fallback + CriticAgent fallback)
+# GOOGLE_API_KEY=your_gemini_key   (required -- VisionAgent + CriticAgent)
+# VULTR_API_KEY=your_vultr_key     (optional -- primary Llama inference, recommended)
 ```
 
 ### 3. Run locally
@@ -182,8 +183,9 @@ docker compose up --build -d --force-recreate --remove-orphans
 
 | Variable                        | Default                  | Description                                    |
 |---------------------------------|--------------------------|------------------------------------------------|
-| `GROQ_API_KEY`                  | required                 | Groq API key for all text agents               |
-| `GOOGLE_API_KEY`                | required                 | Gemini 2.5 Flash: VisionAgent (screenshots) + CriticAgent (adversarial reasoning) |
+| `GROQ_API_KEY`                  | required                 | Groq API key — fallback for all Llama agents   |
+| `VULTR_API_KEY`                 | optional                 | Vultr Serverless Inference — primary provider for all Llama agents (recommended) |
+| `GOOGLE_API_KEY`                | required                 | Gemini: VisionAgent (screenshots + inference) + CriticAgent (adversarial reasoning) |
 | `MAX_CONCURRENT_INVESTIGATIONS` | `10`                     | Semaphore limit on concurrent streams          |
 | `DB_PATH`                       | `investigations.db`      | SQLite database file path                      |
 | `TOOL_API_BASE_URL`             | `http://localhost:8000`  | Base URL for live tool HTTP endpoints          |

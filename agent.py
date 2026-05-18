@@ -45,13 +45,20 @@ def _get_groq_client() -> Groq:
 # ---------------------------------------------------------------------------
 
 
-_GEMINI_MODELS = ["gemini-2.5-flash",
-                  "gemini-2.5-flash-lite", "gemini-2.0-flash"]
+# Ordered by preference; older models have much higher free-tier quotas (1500 RPD vs 20 RPD)
+_GEMINI_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",       # 1500 req/day free tier
+    "gemini-1.5-flash-8b",   # 1500 req/day free tier
+]
 
 
-def _call_gemini_text(system: str, user: str, max_tokens: int = 500) -> str:
+def _call_gemini_text(system: str, user: str, max_tokens: int = 500) -> tuple[str, str]:
     """Call Gemini for text reasoning, trying models in order until one succeeds.
 
+    Returns (response_text, model_name).
     Raises RuntimeError if GOOGLE_API_KEY is absent or all models fail,
     so CriticAgent can fall back to Groq cleanly.
     """
@@ -80,7 +87,7 @@ def _call_gemini_text(system: str, user: str, max_tokens: int = 500) -> str:
             if not response.text:
                 raise RuntimeError(f"Empty response from {model}")
             _log.warning("CriticAgent: Gemini model used: %s", model)
-            return response.text
+            return response.text, model
         except Exception as exc:
             _log.warning(
                 "CriticAgent: %s failed (%s) — trying next", model, exc)
@@ -389,7 +396,7 @@ class CriticAgent:
         )
         # --- Primary: Gemini 2.5 Flash (cross-provider — genuinely independent) ---
         try:
-            content = _call_gemini_text(self.SYSTEM, prompt, max_tokens=1024)
+            content, _gemini_model = _call_gemini_text(self.SYSTEM, prompt, max_tokens=1024)
             # Gemini often wraps JSON in markdown code blocks or adds prose — strip both
             _text = content.strip()
             if _text.startswith("```"):
@@ -402,7 +409,7 @@ class CriticAgent:
                 _text = _text[_start:_end]
             _log.warning("CriticAgent: Gemini raw (trimmed): %s", _text[:300])
             result = json.loads(_text)
-            result["_critic_model"] = "gemini-2.5-flash"
+            result["_critic_model"] = _gemini_model
             return result
         except Exception as _gemini_exc:
             _log.warning(

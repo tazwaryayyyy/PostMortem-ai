@@ -9,22 +9,23 @@ Architecture: PostMortemCoordinator dispatches to specialist agents:
   - CriticAgent      : adversarial review (gemini-2.5-flash → qwen-qwen3-32b fallback)
 """
 
+from vision_agent import get_vision_agent
+from mock_apis import INCIDENTS, flag_for_review_impl, query_pagerduty_impl
+from groq import Groq
+import httpx
 import asyncio
 import json
 import logging
 import os
+import re
 import time
 from enum import Enum
 from typing import AsyncGenerator
 
 _log = logging.getLogger(__name__)
 
-import httpx
-from groq import Groq
 
-from mock_apis import INCIDENTS, flag_for_review_impl, query_pagerduty_impl
 from prompts import SYSTEM_PROMPT  # noqa: F401
-from vision_agent import get_vision_agent
 
 # ---------------------------------------------------------------------------
 # Groq client — lazy-initialised
@@ -376,7 +377,12 @@ class CriticAgent:
         # --- Primary: Gemini 2.5 Flash (cross-provider — genuinely independent) ---
         try:
             content = _call_gemini_text(self.SYSTEM, prompt, max_tokens=500)
-            result = json.loads(content)
+            # Gemini often wraps JSON in markdown code blocks — strip them
+            _text = content.strip()
+            if _text.startswith("```"):
+                _text = re.sub(r"^```[a-zA-Z]*\s*\n?", "", _text)
+                _text = re.sub(r"\n?```\s*$", "", _text).strip()
+            result = json.loads(_text)
             result["_critic_model"] = "gemini-2.5-flash"
             return result
         except Exception as _gemini_exc:

@@ -2826,13 +2826,12 @@
         `*Models: Groq llama-3.3-70b-versatile (reasoning) + Gemini 2.5 Flash (vision + critic)*`,
       ];
 
-      const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
-      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(lines.join('\n'));
       a.download = `postmortem_${pm.incident_id || 'report'}_${dateTag}.md`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     });
 
     // ── Confidence warning ─────────────────────────────────────────────────────

@@ -2110,8 +2110,7 @@
           <span class="panel-count" id="pm-status">Pending</span>
         </div>
         <div id="pm-toolbar" class="pm-toolbar" style="display:none">
-          <button class="btn btn-ghost" id="btn-export-md" disabled style="font-size:10px;padding:4px 10px">⬇ Export
-            Markdown</button>
+          <button class="btn btn-ghost" id="btn-export-md" disabled style="font-size:10px;padding:4px 10px">⬇ Copy Markdown</button>
           <button class="btn btn-ghost" id="btn-export-pdf" disabled style="font-size:10px;padding:4px 10px">⬇ Export
             PDF</button>
         </div>
@@ -2826,12 +2825,29 @@
         `*Models: Groq llama-3.3-70b-versatile (reasoning) + Gemini 2.5 Flash (vision + critic)*`,
       ];
 
-      const a = document.createElement('a');
-      a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(lines.join('\n'));
-      a.download = `postmortem_${pm.incident_id || 'report'}_${dateTag}.md`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const text = lines.join('\n');
+      const ta = document.createElement('textarea');
+      ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand('copy');
+        const orig = btnExportMd.innerHTML;
+        btnExportMd.innerHTML = '✓ Copied to clipboard!';
+        btnExportMd.disabled = true;
+        setTimeout(() => { btnExportMd.innerHTML = orig; btnExportMd.disabled = false; }, 2200);
+      } catch (_) {
+        // Last-resort: open raw text in a new tab so user can Ctrl+S
+        const w = window.open('', '_blank');
+        if (w) {
+          w.document.write('<pre style="font-family:monospace;white-space:pre-wrap;padding:16px">' + text.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</pre>');
+          w.document.close();
+        }
+      } finally {
+        document.body.removeChild(ta);
+      }
     });
 
     // ── Confidence warning ─────────────────────────────────────────────────────

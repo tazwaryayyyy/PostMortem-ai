@@ -6,7 +6,7 @@ Architecture: PostMortemCoordinator dispatches to specialist agents:
   - EvidenceAgent    : evaluates single tool result (llama-3.1-8b-instant, fast)
   - RootCauseAgent   : synthesizes confirmed evidence (llama-3.3-70b-versatile)
   - ReportAgent      : writes final post-mortem (compound-beta)
-  - CriticAgent      : adversarial review (qwen-qwen3-32b)
+  - CriticAgent      : adversarial review (gemini-2.5-flash → qwen-qwen3-32b fallback)
 """
 
 import asyncio
@@ -34,6 +34,40 @@ def _get_groq_client() -> Groq:
     if _groq_client is None:
         _groq_client = Groq()
     return _groq_client
+
+
+# ---------------------------------------------------------------------------
+# Gemini text helper — used exclusively by CriticAgent
+# ---------------------------------------------------------------------------
+_gemini_critic_model = None
+
+
+def _call_gemini_text(system: str, user: str, max_tokens: int = 500) -> str:
+    """Call gemini-2.5-flash for text reasoning. Returns response text.
+
+    Raises RuntimeError if GOOGLE_API_KEY is absent or the call fails,
+    so CriticAgent can fall back to Groq cleanly.
+    """
+    global _gemini_critic_model
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise RuntimeError("GOOGLE_API_KEY not set")
+    try:
+        import google.generativeai as genai  # type: ignore
+    except ImportError as exc:
+        raise RuntimeError("google-generativeai not installed") from exc
+    if _gemini_critic_model is None:
+        genai.configure(api_key=api_key)
+        _gemini_critic_model = genai.GenerativeModel(
+            "gemini-2.5-flash",
+            system_instruction=system,
+        )
+    response = _gemini_critic_model.generate_content(
+        user,
+        generation_config={
+            "max_output_tokens": max_tokens, "temperature": 0.5},
+    )
+    return response.text
 
 
 # ---------------------------------------------------------------------------
@@ -254,7 +288,12 @@ class ReportAgent:
 
 
 class CriticAgent:
-    """Adversarial reviewer of root cause conclusion. Different model for genuine critique."""
+    """Adversarial reviewer of root cause conclusion.
+
+    Primary: Google Gemini 2.5 Flash (independent provider — no shared reasoning
+    context with the Groq-based investigation chain).
+    Fallback: qwen-qwen3-32b on Groq if Gemini is unavailable.
+    """
 
     SYSTEM = (
         "You are CriticAgent. Find holes in a root cause conclusion. "
@@ -268,6 +307,16 @@ class CriticAgent:
             f"Root cause conclusion: {json.dumps(root_cause)}\n"
             f"Evidence used: {json.dumps(evidence, indent=2)[:800]}"
         )
+        # --- Primary: Gemini 2.5 Flash (cross-provider — genuinely independent) ---
+        try:
+            content = _call_gemini_text(self.SYSTEM, prompt, max_tokens=500)
+            result = json.loads(content)
+            result["_critic_model"] = "gemini-2.5-flash"
+            return result
+        except Exception:
+            pass  # fall through to Groq
+
+        # --- Fallback: Groq qwen-qwen3-32b ---
         try:
             content = _chat_with_fallback(
                 messages=[
@@ -287,11 +336,14 @@ class CriticAgent:
                 ],
                 "confidence_in_conclusion": root_cause.get("confidence", 80),
                 "fallback": True,
+                "_critic_model": "fallback",
             }
         try:
-            return json.loads(content)
+            result = json.loads(content)
+            result["_critic_model"] = _MODEL_CRITIC
+            return result
         except json.JSONDecodeError:
-            return {"agrees": True, "counterarguments": [], "confidence_in_conclusion": 85}
+            return {"agrees": True, "counterarguments": [], "confidence_in_conclusion": 85, "_critic_model": _MODEL_CRITIC}
 
 
 # ---------------------------------------------------------------------------
@@ -636,7 +688,7 @@ class PostMortemCoordinator:
                     "agent_dispatch",
                     agent_name="CriticAgent",
                     task="Adversarial review of root cause conclusion",
-                    model="qwen-qwen3-32b",
+                    model="gemini-2.5-flash",
                 )
                 await asyncio.sleep(0.4)
 

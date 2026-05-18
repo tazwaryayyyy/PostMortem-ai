@@ -765,7 +765,8 @@ class PostMortemCoordinator:
                     self._critic_agent.run,
                     root_cause_data, self.evidence, self.token_key,
                 )
-                self._critic_model_used = critic_result.get("_critic_model", "qwen-qwen3-32b")
+                self._critic_model_used = critic_result.get(
+                    "_critic_model", "qwen-qwen3-32b")
                 agrees = critic_result.get("agrees", True)
                 counterargs = critic_result.get("counterarguments", [])
                 critic_says = (

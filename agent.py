@@ -45,7 +45,8 @@ def _get_groq_client() -> Groq:
 # ---------------------------------------------------------------------------
 
 
-_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"]
+_GEMINI_MODELS = ["gemini-2.5-flash",
+                  "gemini-2.5-flash-lite", "gemini-2.0-flash"]
 
 
 def _call_gemini_text(system: str, user: str, max_tokens: int = 500) -> str:
@@ -81,7 +82,8 @@ def _call_gemini_text(system: str, user: str, max_tokens: int = 500) -> str:
             _log.warning("CriticAgent: Gemini model used: %s", model)
             return response.text
         except Exception as exc:
-            _log.warning("CriticAgent: %s failed (%s) — trying next", model, exc)
+            _log.warning(
+                "CriticAgent: %s failed (%s) — trying next", model, exc)
             last_exc = exc
     raise last_exc
 
@@ -376,7 +378,7 @@ class CriticAgent:
     SYSTEM = (
         "You are CriticAgent. Find holes in a root cause conclusion. "
         "Be adversarial. Look for logical gaps, missing evidence, alternative explanations. "
-        "Return valid JSON only: "
+        "Return valid JSON only, with counterarguments as SHORT one-sentence strings (max 20 words each): "
         '{"agrees": true, "counterarguments": ["..."], "confidence_in_conclusion": 90}'
     )
 
@@ -387,7 +389,7 @@ class CriticAgent:
         )
         # --- Primary: Gemini 2.5 Flash (cross-provider — genuinely independent) ---
         try:
-            content = _call_gemini_text(self.SYSTEM, prompt, max_tokens=500)
+            content = _call_gemini_text(self.SYSTEM, prompt, max_tokens=1024)
             # Gemini often wraps JSON in markdown code blocks or adds prose — strip both
             _text = content.strip()
             if _text.startswith("```"):

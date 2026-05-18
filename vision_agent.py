@@ -128,10 +128,14 @@ class VisionAgent:
 
         raw_text = response.text.strip()
 
-        # Strip markdown fences if model added them
+        # Strip markdown fences and slice to outermost JSON object
         if raw_text.startswith("```"):
-            lines = raw_text.split("\n")
-            raw_text = "\n".join(lines[1:-1]) if len(lines) > 2 else raw_text
+            import re as _re
+            raw_text = _re.sub(r"^```[a-zA-Z]*\s*\n?", "", raw_text)
+            raw_text = _re.sub(r"\n?```\s*$", "", raw_text).strip()
+        _s, _e = raw_text.find("{"), raw_text.rfind("}") + 1
+        if _s != -1 and _e > _s:
+            raw_text = raw_text[_s:_e]
 
         try:
             result = json.loads(raw_text)
@@ -141,7 +145,7 @@ class VisionAgent:
                 "anomalies": [],
                 "affected_services": [],
                 "severity": "unknown",
-                "visual_evidence": raw_text[:300],
+                "visual_evidence": "Visual analysis unavailable — could not parse model response.",
                 "chart_type": "unknown",
                 "time_range_visible": None,
                 "parse_error": "Gemini response was not valid JSON",
@@ -178,17 +182,21 @@ class VisionAgent:
 
         raw_text = response.text.strip()
         if raw_text.startswith("```"):
-            lines = raw_text.split("\n")
-            raw_text = "\n".join(lines[1:-1]) if len(lines) > 2 else raw_text
+            import re as _re
+            raw_text = _re.sub(r"^```[a-zA-Z]*\s*\n?", "", raw_text)
+            raw_text = _re.sub(r"\n?```\s*$", "", raw_text).strip()
+        _s, _e = raw_text.find("{"), raw_text.rfind("}") + 1
+        if _s != -1 and _e > _s:
+            raw_text = raw_text[_s:_e]
 
         try:
             result = json.loads(raw_text)
         except json.JSONDecodeError:
             result = {
-                "visual_pattern": raw_text[:300],
+                "visual_pattern": "Visual inference unavailable — could not parse model response.",
                 "anomaly_timestamp": None,
                 "affected_panels": [],
-                "visual_evidence": raw_text[:200],
+                "visual_evidence": "Visual inference unavailable — could not parse model response.",
                 "anomalies": [],
                 "affected_services": [],
                 "severity": "unknown",

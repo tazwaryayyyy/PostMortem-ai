@@ -8,6 +8,7 @@ Deploy Vultr: uvicorn main:app --host 0.0.0.0 --port 8000
 import asyncio
 import base64
 import json
+import logging
 import os
 import random
 import sys
@@ -15,6 +16,12 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+logging.basicConfig(
+    level=logging.WARNING,
+    format="%(levelname)s %(name)s: %(message)s",
+    stream=sys.stderr,
+)
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile

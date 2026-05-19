@@ -19,15 +19,20 @@ from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from dotenv import load_dotenv
 import asyncio
 import base64
+import hashlib
+import hmac
 import json
 import logging
 import os
 import random
 import sys
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+import httpx
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -57,11 +62,21 @@ load_incidents()
 _MAX_CONCURRENT = int(os.getenv("MAX_CONCURRENT_INVESTIGATIONS", "10"))
 _investigation_semaphore = asyncio.Semaphore(_MAX_CONCURRENT)
 
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    """Run DB initialization once on startup without blocking the event loop."""
+    from investigation_store import init_db
+    await asyncio.to_thread(init_db)
+    yield
+
+
 # ── FastAPI app ────────────────────────────────────────────────────────────
 app = FastAPI(
     title="PostMortem.ai",
     version="1.0.0",
     description="Autonomous multi-agent incident investigation platform.",
+    lifespan=_lifespan,
 )
 
 app.add_middleware(
@@ -149,33 +164,36 @@ async def investigate(
         raise HTTPException(
             status_code=404, detail=f"Incident '{incident_id}' not found.")
 
-    # Run vision analysis synchronously before starting the stream
-    vision_findings = None
-    if screenshot_b64:
-        try:
-            agent = get_vision_agent()
-            vision_findings = agent.analyze_base64(
-                screenshot_b64, mime_type=screenshot_mime)
-        except Exception as exc:
-            # Non-fatal — proceed without vision findings
-            vision_findings = {
-                "anomalies": [],
-                "affected_services": [],
-                "severity": "unknown",
-                "visual_evidence": f"Vision analysis unavailable: {exc}",
-                "chart_type": "unknown",
-                "time_range_visible": None,
-            }
-
-    investigation_start = datetime.now(timezone.utc).isoformat()
-
     async def event_stream():
         async with _investigation_semaphore:
+            # Capture start time AFTER acquiring the semaphore so queue-wait
+            # time is not included in the stored investigation duration.
+            investigation_start = datetime.now(timezone.utc).isoformat()
+
+            # Resolve vision analysis non-blocking inside the stream so the
+            # browser receives the first SSE bytes immediately.
+            resolved_vision: dict | None = None
+            if screenshot_b64:
+                try:
+                    _va = get_vision_agent()
+                    resolved_vision = await asyncio.to_thread(
+                        _va.analyze_base64, screenshot_b64, screenshot_mime
+                    )
+                except Exception as exc:
+                    resolved_vision = {
+                        "anomalies": [],
+                        "affected_services": [],
+                        "severity": "unknown",
+                        "visual_evidence": f"Vision analysis unavailable: {exc}",
+                        "chart_type": "unknown",
+                        "time_range_visible": None,
+                    }
+
             postmortem_result = {}
             try:
                 coordinator = PostMortemCoordinator(
                     incident_id=incident_id,
-                    vision_findings=vision_findings,
+                    vision_findings=resolved_vision,
                 )
                 async for event in coordinator.run_streaming():
                     # Check if client disconnected
@@ -203,10 +221,8 @@ async def investigate(
                         confidence=postmortem_result.get("confidence"),
                         agent_model_used=models_used,
                         token_count=postmortem_result.get("token_count", 0),
-                        hypotheses_tested=len(
-                            postmortem_result.get("evidence", [])
-                            + postmortem_result.get("rejected", [])
-                        ),
+                        hypotheses_tested=postmortem_result.get(
+                            "hypotheses_tested_count", 0),
                         hypotheses_rejected=len(
                             postmortem_result.get("rejected", [])),
                     )
@@ -315,7 +331,8 @@ async def generate_incident_endpoint(body: GenerateIncidentRequest):
 @app.get("/history", summary="Return last 20 investigation outcomes")
 async def investigation_history():
     """Return the last 20 completed investigations with outcomes from SQLite store."""
-    return {"investigations": get_history(limit=20)}
+    rows = await asyncio.to_thread(get_history, 20)
+    return {"investigations": rows}
 
 
 @app.get("/metrics", summary="Return aggregate investigation statistics")
@@ -331,7 +348,7 @@ async def investigation_metrics():
     - hypothesis_rejection_rate: fraction of hypotheses that were red-herrings
     - most_common_root_cause_category: top category observed across incidents
     """
-    base = get_metrics_summary()
+    base = await asyncio.to_thread(get_metrics_summary)
 
     # Compute business value stats from incident files at request time
     load_incidents()
@@ -370,18 +387,41 @@ async def investigation_metrics():
     }
 
 
+_PD_WEBHOOK_SECRET = os.getenv("PAGERDUTY_WEBHOOK_SECRET", "")
+
+
 @app.post("/webhook/pagerduty", summary="Accept PagerDuty webhook and auto-investigate")
-async def pagerduty_webhook(payload: PagerDutyWebhookPayload):
+async def pagerduty_webhook(request: Request):
     """
     Accept a real PagerDuty v3 webhook payload.
 
-    Extracts the incident service and triggers an autonomous investigation
-    against the closest matching incident in the store. Returns the
-    incident_id that was matched for investigation.
-
-    In production, extend this to create a real incident JSON from the
-    PagerDuty event data.
+    When PAGERDUTY_WEBHOOK_SECRET is configured the X-PagerDuty-Signature
+    header is validated with HMAC-SHA256 before the body is parsed.
+    Extracts the incident service and matches it to a stored incident.
     """
+    raw_body = await request.body()
+
+    # Verify HMAC signature when a shared secret is configured
+    if _PD_WEBHOOK_SECRET:
+        sig_header = request.headers.get("X-PagerDuty-Signature", "")
+        expected_sig = "v1=" + hmac.new(
+            _PD_WEBHOOK_SECRET.encode(), raw_body, hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(sig_header, expected_sig):
+            raise HTTPException(
+                status_code=401, detail="Invalid webhook signature.")
+
+    try:
+        body_data = json.loads(raw_body)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=400, detail="Invalid JSON payload.") from exc
+
+    try:
+        payload = PagerDutyWebhookPayload(**body_data)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     # Extract service name — supports demo, PD v2, and PD v3 payloads
     service_name = "unknown"
     try:
@@ -434,19 +474,20 @@ async def health():
     load_incidents()
     uptime_seconds = round(time.monotonic() - _app_start_time, 1)
 
-    # Get investigation count from store (non-fatal)
+    # Get investigation count from store — non-blocking (non-fatal)
     investigations_completed = 0
     try:
-        investigations_completed = get_metrics_summary().get("total_investigations", 0)
+        _metrics = await asyncio.to_thread(get_metrics_summary)
+        investigations_completed = _metrics.get("total_investigations", 0)
     except Exception:
         pass
 
-    # Resolve public IP (fast, non-fatal)
+    # Resolve public IP — async HTTP, does not block the event loop (non-fatal)
     instance_ip = None
     try:
-        import urllib.request
-        with urllib.request.urlopen("https://api.ipify.org", timeout=2) as r:
-            instance_ip = r.read().decode().strip()
+        async with httpx.AsyncClient(timeout=2.0) as _client:
+            _r = await _client.get("https://api.ipify.org")
+            instance_ip = _r.text.strip()
     except Exception:
         pass
 

@@ -147,9 +147,17 @@ def _try_vultr_inference(
                 },
             )
         if resp.status_code != 200:
+            _log.warning(
+                "_try_vultr_inference: HTTP %d from Vultr (model=%s) — falling back to Groq",
+                resp.status_code, vultr_model,
+            )
             return None
         return resp.json()["choices"][0]["message"]["content"] or ""
-    except Exception:
+    except Exception as exc:
+        _log.warning(
+            "_try_vultr_inference: request failed (%s: %s) — falling back to Groq",
+            type(exc).__name__, exc,
+        )
         return None
 
 
@@ -616,7 +624,17 @@ class PostMortemCoordinator:
         )
         await asyncio.sleep(0.3)
 
-        raw_hypotheses = self.incident["expected_hypothesis_sequence"]
+        raw_hypotheses = self.incident.get("expected_hypothesis_sequence")
+        if not raw_hypotheses:
+            yield self._ev(
+                "error",
+                message=(
+                    f"Incident '{self.incident_id}' is missing "
+                    "'expected_hypothesis_sequence'. "
+                    "Re-generate the incident or choose a built-in one."
+                ),
+            )
+            return
         self.hypotheses = []
         for i, h in enumerate(raw_hypotheses):
             hyp = {
@@ -736,24 +754,17 @@ class PostMortemCoordinator:
                     )
                     await asyncio.sleep(1.6)
 
+                    extra_tool = hyp["data_to_query"][0] if hyp[
+                        "data_to_query"] else "query_logs(api)"
                     yield self._ev(
                         "tool_call",
-                        tool="query_logs",
-                        message="Requesting transaction-level payment logs...",
+                        tool=extra_tool.split("(")[0],
+                        message=f"Requesting additional evidence via {extra_tool}...",
                     )
                     await asyncio.sleep(1.9)
 
-                    extra_data = {
-                        "message": "HTTP 429 responses found in payment transaction logs",
-                        "count": 47,
-                        "entries": [{
-                            "timestamp": "2024-01-25T16:01:00Z",
-                            "service": "payment",
-                            "level": "warn",
-                            "message": "HTTP 429: Too Many Requests — retry-after: 60s",
-                        }],
-                    }
-                    yield self._ev("tool_result", tool="query_logs", data=extra_data)
+                    extra_data = await self._execute_tool_action(extra_tool)
+                    yield self._ev("tool_result", tool=extra_tool.split("(")[0], data=extra_data)
                     await asyncio.sleep(0.8)
                     confidence = 91
                     hyp["confidence"] = confidence
@@ -1018,6 +1029,7 @@ class PostMortemCoordinator:
                 "critic": self._critic_model_used,
             },
             "token_count": token_count,
+            "hypotheses_tested_count": len(self.hypotheses),
         }
 
     def _estimate_recurrence_risk(self) -> dict:
@@ -1107,8 +1119,8 @@ class PostMortemCoordinator:
         network-observable tool orchestration is visible in server access logs and
         DevTools. PagerDuty and flag_for_review remain in-process (no HTTP endpoint).
         """
-        start = self.incident["start_time"]
-        end = self.incident["end_time"]
+        start = self.incident.get("start_time", "")
+        end = self.incident.get("end_time", "")
         iid = self.incident_id
         action_str = action_str.strip()
 

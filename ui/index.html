@@ -2418,6 +2418,10 @@
     });
 
     function handleScreenshot(file) {
+      if (file.size > 10 * 1024 * 1024) {
+        dropZone.innerHTML = `<span style="color:var(--red);font-size:10px">✗ File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum 10 MB.</span>`;
+        return;
+      }
       const reader = new FileReader();
       reader.onload = evt => {
         const dataUrl = evt.target.result;

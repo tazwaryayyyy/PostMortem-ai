@@ -116,6 +116,10 @@ def generate_incident(
     client = Groq()
     incident_uuid = uuid.uuid4().hex[:8]
 
+    # Sanitize service_name to prevent prompt injection via special characters.
+    import re as _re
+    service_name = _re.sub(r"[^a-zA-Z0-9\-_.]", "-", service_name)[:60]
+
     prompt = _GENERATION_PROMPT.format(
         service_name=service_name,
         incident_type=incident_type,
@@ -132,11 +136,16 @@ def generate_incident(
 
     raw = resp.choices[0].message.content or ""
 
-    # Strip markdown fences if present
+    # Strip markdown fences and slice to outermost JSON braces
     raw = raw.strip()
     if raw.startswith("```"):
-        lines = raw.split("\n")
-        raw = "\n".join(lines[1:-1]) if len(lines) > 2 else raw
+        import re as _re_fence
+        raw = _re_fence.sub(r"^```[a-zA-Z]*\s*\n?", "", raw)
+        raw = _re_fence.sub(r"\n?```.*$", "", raw,
+                            flags=_re_fence.MULTILINE).strip()
+    _s, _e = raw.find("{"), raw.rfind("}") + 1
+    if _s != -1 and _e > _s:
+        raw = raw[_s:_e]
 
     incident_data = json.loads(raw)
 
@@ -144,8 +153,8 @@ def generate_incident(
     incident_id = f"generated_{incident_uuid}"
     incident_data["incident_id"] = incident_id
 
-    # Persist to incidents directory
-    output_path = Path("incidents") / f"{incident_id}.json"
+    # Persist to incidents directory (absolute path avoids cwd-dependent failures)
+    output_path = Path(__file__).parent / "incidents" / f"{incident_id}.json"
     output_path.parent.mkdir(exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(incident_data, f, indent=2)

@@ -10,6 +10,7 @@ Gemini is used EXCLUSIVELY for image analysis. All text reasoning stays on Groq.
 import base64
 import json
 import os
+import re
 from typing import Union
 
 _TEXT_INFERENCE_PROMPT = """You are a senior SRE analyzing a production incident.
@@ -126,20 +127,27 @@ class VisionAgent:
             ),
         )
 
-        raw_text = response.text.strip()
+        raw_text = (response.text or "").strip()
+        if not raw_text:
+            return {
+                "anomalies": [],
+                "affected_services": [],
+                "severity": "unknown",
+                "visual_evidence": "Gemini returned an empty response (safety filter or quota).",
+                "chart_type": "unknown",
+                "time_range_visible": None,
+            }
 
         # Strip markdown fences and slice to outermost JSON object
         if raw_text.startswith("```"):
-            import re as _re
-            raw_text = _re.sub(r"^```[a-zA-Z]*\s*\n?", "", raw_text)
-            raw_text = _re.sub(r"\n?```\s*$", "", raw_text).strip()
+            raw_text = re.sub(r"^```[a-zA-Z]*\s*\n?", "", raw_text)
+            raw_text = re.sub(r"\n?```\s*$", "", raw_text).strip()
         _s, _e = raw_text.find("{"), raw_text.rfind("}") + 1
         if _s != -1 and _e > _s:
             raw_text = raw_text[_s:_e]
-        import re as _re2
-        raw_text = _re2.sub(r'\bNone\b', 'null', raw_text)
-        raw_text = _re2.sub(r'\bTrue\b', 'true', raw_text)
-        raw_text = _re2.sub(r'\bFalse\b', 'false', raw_text)
+        raw_text = re.sub(r'\bNone\b', 'null', raw_text)
+        raw_text = re.sub(r'\bTrue\b', 'true', raw_text)
+        raw_text = re.sub(r'\bFalse\b', 'false', raw_text)
 
         try:
             result = json.loads(raw_text)
@@ -184,18 +192,27 @@ class VisionAgent:
             ),
         )
 
-        raw_text = response.text.strip()
+        raw_text = (response.text or "").strip()
+        if not raw_text:
+            return {
+                "visual_pattern": "Gemini returned an empty response (safety filter or quota).",
+                "anomaly_timestamp": None,
+                "affected_panels": [],
+                "visual_evidence": "Visual inference unavailable — empty model response.",
+                "anomalies": [],
+                "affected_services": [],
+                "severity": "unknown",
+                "is_inferred": True,
+            }
         if raw_text.startswith("```"):
-            import re as _re
-            raw_text = _re.sub(r"^```[a-zA-Z]*\s*\n?", "", raw_text)
-            raw_text = _re.sub(r"\n?```\s*$", "", raw_text).strip()
+            raw_text = re.sub(r"^```[a-zA-Z]*\s*\n?", "", raw_text)
+            raw_text = re.sub(r"\n?```\s*$", "", raw_text).strip()
         _s, _e = raw_text.find("{"), raw_text.rfind("}") + 1
         if _s != -1 and _e > _s:
             raw_text = raw_text[_s:_e]
-        import re as _re2
-        raw_text = _re2.sub(r'\bNone\b', 'null', raw_text)
-        raw_text = _re2.sub(r'\bTrue\b', 'true', raw_text)
-        raw_text = _re2.sub(r'\bFalse\b', 'false', raw_text)
+        raw_text = re.sub(r'\bNone\b', 'null', raw_text)
+        raw_text = re.sub(r'\bTrue\b', 'true', raw_text)
+        raw_text = re.sub(r'\bFalse\b', 'false', raw_text)
 
         try:
             result = json.loads(raw_text)

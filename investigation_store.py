@@ -194,5 +194,7 @@ def get_metrics_summary() -> dict[str, Any]:
         conn.close()
 
 
-# Initialize on module import
-init_db()
+# init_db() is called from the FastAPI lifespan in main.py.
+# Do NOT call it here — the DB_PATH directory may not be mounted yet at import
+# time (named Docker volume), and blocking SQLite setup belongs in the startup
+# lifecycle, not at module import.

@@ -64,7 +64,7 @@ class SlackRequest(BaseModel):
 
 def _load_incident(incident_id: str) -> dict | None:
     """Load incident JSON by ID. Returns None if the incident file does not exist."""
-    path = Path("incidents") / f"{incident_id}.json"
+    path = Path(__file__).parent / "incidents" / f"{incident_id}.json"
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
     return None
@@ -226,11 +226,15 @@ def _fetch_real_commits(incident_start: str) -> list[dict]:
     No auth token required — public repo, unauthenticated tier is fine for demo use.
     """
     try:
+        _gh_headers: dict[str, str] = {"Accept": "application/vnd.github+json"}
+        _gh_token = os.getenv("GITHUB_TOKEN")
+        if _gh_token:
+            _gh_headers["Authorization"] = f"Bearer {_gh_token}"
         with httpx.Client(timeout=3.0) as client:
             resp = client.get(
                 f"https://api.github.com/repos/{_GITHUB_REPO}/commits",
                 params={"per_page": 15},
-                headers={"Accept": "application/vnd.github+json"},
+                headers=_gh_headers,
             )
             if resp.status_code != 200:
                 return []

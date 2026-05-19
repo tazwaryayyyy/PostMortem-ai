@@ -5,6 +5,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PostMortem.ai — Autonomous Root Cause Analysis</title>
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='none' stroke='%2300e5a0' stroke-width='2'/><text x='16' y='21' text-anchor='middle' font-size='14' fill='%2300e5a0' font-family='monospace'>⊕</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link
     href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;700;800&display=swap"
@@ -61,10 +63,35 @@
       z-index: 9999;
     }
 
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(8, 11, 16, 0.6) 100%),
+        url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><path d='M 40 0 L 0 0 0 40' fill='none' stroke='rgba(0,229,160,0.03)' stroke-width='1'/></svg>");
+      background-size: 100% 100%, 40px 40px;
+      animation: topology-drift 20s linear infinite;
+    }
+
+    @keyframes topology-drift {
+      from {
+        background-position: 50% 50%, 0px 0px;
+      }
+
+      to {
+        background-position: 50% 50%, 40px 40px;
+      }
+    }
+
     #app {
       display: grid;
       grid-template-rows: 56px 36px 40px 1fr;
       height: 100vh;
+      position: relative;
+      z-index: 1;
     }
 
     /* ── Header ── */
@@ -539,6 +566,36 @@
       width: 0%;
     }
 
+    @keyframes meter-confirm {
+      0% {
+        background: linear-gradient(90deg, var(--blue), var(--green));
+      }
+
+      25% {
+        background: linear-gradient(90deg, var(--green), #00ffb3);
+        filter: brightness(1.4);
+      }
+
+      50% {
+        background: linear-gradient(90deg, var(--blue), var(--green));
+        filter: brightness(1);
+      }
+
+      75% {
+        background: linear-gradient(90deg, var(--green), #00ffb3);
+        filter: brightness(1.3);
+      }
+
+      100% {
+        background: linear-gradient(90deg, var(--blue), var(--green));
+        filter: brightness(1);
+      }
+    }
+
+    .conf-meter-fill.confirmed {
+      animation: meter-confirm 0.4s ease forwards;
+    }
+
     .conf-meter-value {
       font-size: 18px;
       font-weight: 700;
@@ -944,7 +1001,9 @@
 
     .pm-section {
       margin-bottom: 10px;
-      animation: slide-in 0.3s ease;
+      animation: slide-in 0.22s ease both;
+      animation-delay: calc(var(--pm-i, 0) * 0.07s);
+      animation-fill-mode: both;
     }
 
     .pm-section-title {
@@ -971,9 +1030,25 @@
       background: rgba(0, 229, 160, 0.06);
       border: 1px solid var(--green-dim);
       border-radius: var(--radius);
-      font-size: 11.5px;
+      font-size: 15px;
       color: var(--text);
-      line-height: 1.6;
+      line-height: 1.65;
+    }
+
+    .pm-section-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .pm-section-head-label {
+      font-family: var(--font-ui);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      white-space: nowrap;
     }
 
     .pm-confidence {
@@ -1299,12 +1374,15 @@
 
     /* Neural network firing animation */
     .agent-network {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--bg-panel);
       display: flex;
       flex-direction: column;
       gap: 3px;
       margin: 8px 0;
       padding: 8px;
-      background: var(--bg);
       border: 1px solid var(--border);
       border-radius: var(--radius);
     }
@@ -1342,6 +1420,73 @@
     .agent-arrow {
       color: var(--border-hi);
       font-size: 10px;
+    }
+
+    /* ── SVG Agent Network ── */
+    .an-rect {
+      fill: var(--bg-card);
+      stroke: var(--border);
+      stroke-width: 1;
+      transition: stroke 0.3s ease;
+    }
+
+    .an-label {
+      fill: var(--text-dim);
+      font-size: 10px;
+      font-family: var(--font-mono);
+      transition: fill 0.3s ease;
+    }
+
+    .an-arrow-path {
+      stroke: var(--border);
+      stroke-width: 1;
+      fill: none;
+    }
+
+    [id^="an-"].active .an-rect {
+      stroke: var(--green);
+      animation: node-pulse 1.8s ease-in-out infinite;
+    }
+
+    [id^="an-"].active .an-label {
+      fill: var(--green);
+    }
+
+    [id^="an-"].done .an-rect {
+      stroke: var(--green-dim);
+    }
+
+    [id^="an-"].done .an-label {
+      fill: var(--green-dim);
+    }
+
+    @keyframes node-pulse {
+
+      0%,
+      100% {
+        stroke-opacity: 1;
+      }
+
+      50% {
+        stroke-opacity: 0.4;
+      }
+    }
+
+    /* ── Empty state SVG icons ── */
+    .es-blink {
+      animation: es-blink 1.4s ease-in-out infinite;
+    }
+
+    @keyframes es-blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.15;
+      }
     }
 
     /* ── Governance gate ── */
@@ -1892,6 +2037,11 @@
         overflow: visible !important;
       }
 
+      /* Hide topology background layer */
+      body::after {
+        display: none !important;
+      }
+
       /* Hide every #app child except <main> */
       #app>*:not(main) {
         display: none !important;
@@ -1948,6 +2098,14 @@
       #postmortem-panel .pm-section-title {
         color: #111 !important;
         border-color: #ccc !important;
+      }
+
+      #postmortem-panel .pm-section-head-label {
+        color: #111 !important;
+      }
+
+      #postmortem-panel .pm-section-head>div[style] {
+        background: #ccc !important;
       }
 
       #postmortem-panel .badge,
@@ -2060,7 +2218,11 @@
         </div>
         <div class="panel-body" id="signal-feed">
           <div class="empty-state">
-            <div class="empty-icon">📡</div>
+            <svg width="56" height="20" viewBox="0 0 56 20" fill="none" xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true">
+              <line x1="4" y1="10" x2="44" y2="10" stroke="var(--text-dim)" stroke-width="1" />
+              <circle class="es-blink" cx="50" cy="10" r="4" stroke="var(--text-dim)" stroke-width="1" />
+            </svg>
             <div>Waiting for incident...</div>
           </div>
         </div>
@@ -2081,7 +2243,14 @@
             <div class="conf-meter-value" id="conf-meter-value">0%</div>
           </div>
           <div class="empty-state">
-            <div class="empty-icon">🔬</div>
+            <svg width="48" height="30" viewBox="0 0 48 30" fill="none" xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true">
+              <rect x="0" y="0" width="48" height="7" rx="2" stroke="var(--text-dim)" stroke-width="1" opacity="0.8" />
+              <rect x="0" y="12" width="48" height="7" rx="2" stroke="var(--text-dim)" stroke-width="1"
+                opacity="0.45" />
+              <rect x="0" y="24" width="48" height="7" rx="2" stroke="var(--text-dim)" stroke-width="1"
+                opacity="0.15" />
+            </svg>
             <div>Awaiting signals...</div>
           </div>
         </div>
@@ -2095,7 +2264,10 @@
         </div>
         <div class="panel-body" id="reasoning-trace">
           <div class="empty-state">
-            <div class="empty-icon">🧠</div>
+            <svg width="16" height="40" viewBox="0 0 16 40" fill="none" xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true">
+              <line x1="8" y1="0" x2="8" y2="40" stroke="var(--text-dim)" stroke-width="1" stroke-dasharray="3 5" />
+            </svg>
             <div>Investigation not started</div>
           </div>
         </div>
@@ -2117,7 +2289,14 @@
         </div>
         <div class="panel-body" id="postmortem-panel">
           <div class="empty-state">
-            <div class="empty-icon">📋</div>
+            <svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true">
+              <path d="M2,2 L20,2 L26,8 L26,34 L2,34 Z" stroke="var(--text-dim)" stroke-width="1" />
+              <path d="M20,2 L20,8 L26,8" stroke="var(--text-dim)" stroke-width="1" />
+              <line x1="7" y1="15" x2="21" y2="15" stroke="var(--text-dim)" stroke-width="1" />
+              <line x1="7" y1="21" x2="21" y2="21" stroke="var(--text-dim)" stroke-width="1" />
+              <line x1="7" y1="27" x2="21" y2="27" stroke="var(--text-dim)" stroke-width="1" />
+            </svg>
             <div>Report generated after investigation</div>
           </div>
         </div>
@@ -2132,27 +2311,50 @@
         <div class="panel-body" id="agent-feed">
           <!-- Agent network diagram -->
           <div class="agent-network" id="agent-network">
-            <div class="agent-flow-row">
-              <span class="agent-node" id="an-ingest">INGEST</span>
-              <span class="agent-arrow">→</span>
-              <span class="agent-node" id="an-hyp">HypAgent</span>
-            </div>
-            <div class="agent-flow-row" style="padding-left:20px">
-              <span class="agent-arrow">↓</span>
-            </div>
-            <div class="agent-flow-row">
-              <span class="agent-node" id="an-ev">EvidAgent</span>
-              <span class="agent-arrow">→</span>
-              <span class="agent-node" id="an-rc">RootAgent</span>
-            </div>
-            <div class="agent-flow-row" style="padding-left:20px">
-              <span class="agent-arrow">↓</span>
-            </div>
-            <div class="agent-flow-row">
-              <span class="agent-node" id="an-crit">CriticAgent</span>
-              <span class="agent-arrow">→</span>
-              <span class="agent-node" id="an-rep">ReportAgent</span>
-            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="130" height="284" style="display:block;margin:0 auto"
+              aria-hidden="true">
+              <defs>
+                <marker id="an-arrow" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L6,3 L0,6 Z" style="fill:#1e2a38" />
+                </marker>
+              </defs>
+              <!-- Flow arrows -->
+              <path class="an-arrow-path" d="M65,38 L65,54" marker-end="url(#an-arrow)" />
+              <path class="an-arrow-path" d="M65,86 L65,102" marker-end="url(#an-arrow)" />
+              <path class="an-arrow-path" d="M65,134 L65,150" marker-end="url(#an-arrow)" />
+              <path class="an-arrow-path" d="M65,182 L65,198" marker-end="url(#an-arrow)" />
+              <path class="an-arrow-path" d="M65,230 L65,246" marker-end="url(#an-arrow)" />
+              <!-- Nodes -->
+              <g id="an-ingest">
+                <rect class="an-rect" x="10" y="8" width="110" height="28" rx="4" />
+                <text class="an-label" x="65" y="22" text-anchor="middle" dominant-baseline="central">INGEST</text>
+              </g>
+              <g id="an-hyp">
+                <rect class="an-rect" x="10" y="56" width="110" height="28" rx="4" />
+                <text class="an-label" x="65" y="70" text-anchor="middle"
+                  dominant-baseline="central">HypothesisAgent</text>
+              </g>
+              <g id="an-ev">
+                <rect class="an-rect" x="10" y="104" width="110" height="28" rx="4" />
+                <text class="an-label" x="65" y="118" text-anchor="middle"
+                  dominant-baseline="central">EvidenceAgent</text>
+              </g>
+              <g id="an-rc">
+                <rect class="an-rect" x="10" y="152" width="110" height="28" rx="4" />
+                <text class="an-label" x="65" y="166" text-anchor="middle"
+                  dominant-baseline="central">RootCauseAgent</text>
+              </g>
+              <g id="an-crit">
+                <rect class="an-rect" x="10" y="200" width="110" height="28" rx="4" />
+                <text class="an-label" x="65" y="214" text-anchor="middle"
+                  dominant-baseline="central">CriticAgent</text>
+              </g>
+              <g id="an-rep">
+                <rect class="an-rect" x="10" y="248" width="110" height="28" rx="4" />
+                <text class="an-label" x="65" y="262" text-anchor="middle"
+                  dominant-baseline="central">ReportAgent</text>
+              </g>
+            </svg>
           </div>
           <div class="autonomy-ledger" id="autonomy-ledger">
             <div class="autonomy-ledger-title">Autonomy Ledger</div>
@@ -2168,7 +2370,16 @@
                 id="ledger-confidence">0% → pending</span></div>
           </div>
           <div class="empty-state" id="agent-empty">
-            <div class="empty-icon">🤖</div>
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true">
+              <rect x="6" y="8" width="16" height="13" rx="3" stroke="var(--text-dim)" stroke-width="1" />
+              <rect x="10" y="4" width="8" height="5" rx="2" stroke="var(--text-dim)" stroke-width="1" />
+              <line x1="14" y1="4" x2="14" y2="8" stroke="var(--text-dim)" stroke-width="1" />
+              <circle cx="10" cy="15" r="1.5" stroke="var(--text-dim)" stroke-width="1" />
+              <circle cx="18" cy="15" r="1.5" stroke="var(--text-dim)" stroke-width="1" />
+              <line x1="2" y1="14" x2="6" y2="14" stroke="var(--text-dim)" stroke-width="1" />
+              <line x1="22" y1="14" x2="26" y2="14" stroke="var(--text-dim)" stroke-width="1" />
+            </svg>
             <div>Agents idle</div>
           </div>
         </div>
@@ -2345,16 +2556,16 @@
     }
 
     function clearPanels() {
-      signalFeed.innerHTML = '<div class="empty-state"><div class="empty-icon">📡</div><div>Collecting signals...</div></div>';
+      signalFeed.innerHTML = '<div class="empty-state"><svg width="56" height="20" viewBox="0 0 56 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><line x1="4" y1="10" x2="44" y2="10" stroke="var(--text-dim)" stroke-width="1" stroke-dasharray="3 4"/><circle cx="50" cy="10" r="4" stroke="var(--text-dim)" stroke-width="1" class="es-blink"/></svg><div>Collecting signals...</div></div>';
       hypBoard.innerHTML = '';
       hypBoard.appendChild(confMeter);
       confMeter.style.display = 'none';
       const emptyHyp = document.createElement('div');
       emptyHyp.className = 'empty-state';
-      emptyHyp.innerHTML = '<div class="empty-icon">🔬</div><div>Generating hypotheses...</div>';
+      emptyHyp.innerHTML = '<svg width="48" height="30" viewBox="0 0 48 30" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="0" y="0" width="48" height="7" rx="2" stroke="var(--text-dim)" stroke-width="1" opacity="0.8"/><rect x="0" y="12" width="48" height="7" rx="2" stroke="var(--text-dim)" stroke-width="1" opacity="0.45"/><rect x="0" y="24" width="48" height="7" rx="2" stroke="var(--text-dim)" stroke-width="1" opacity="0.15"/></svg><div>Generating hypotheses...</div>';
       hypBoard.appendChild(emptyHyp);
-      traceEl.innerHTML = '<div class="empty-state"><div class="empty-icon">🧠</div><div>Starting investigation...</div></div>';
-      pmPanel.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div>Report pending...</div></div>';
+      traceEl.innerHTML = '<div class="empty-state"><svg width="16" height="40" viewBox="0 0 16 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><line x1="8" y1="0" x2="8" y2="40" stroke="var(--text-dim)" stroke-width="1" stroke-dasharray="3 5"/></svg><div>Starting investigation...</div></div>';
+      pmPanel.innerHTML = '<div class="empty-state"><svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M2,2 L20,2 L26,8 L26,34 L2,34 Z" stroke="var(--text-dim)" stroke-width="1"/><path d="M20,2 L20,8 L26,8" stroke="var(--text-dim)" stroke-width="1"/><line x1="7" y1="15" x2="21" y2="15" stroke="var(--text-dim)" stroke-width="1"/><line x1="7" y1="21" x2="21" y2="21" stroke="var(--text-dim)" stroke-width="1"/><line x1="7" y1="27" x2="21" y2="27" stroke="var(--text-dim)" stroke-width="1"/></svg><div>Report pending...</div></div>';
       agentFeed.innerHTML = '';
       agentFeed.appendChild(agentNetwork);
       agentFeed.appendChild(autonomyLedger);
@@ -2382,6 +2593,7 @@
       btnExportPdf.disabled = true;
       currentConfidence = 0;
       confMeterFill.style.width = '0%';
+      confMeterFill.classList.remove('confirmed');
       confMeterValue.textContent = '0%';
       // Keep webhook banner if it was set by a webhook trigger — cleared after completion
       // Reset agent network nodes
@@ -2522,6 +2734,10 @@
           card.appendChild(reasonEl);
         }
         setConfidenceMeter(confidence);
+        confMeterFill.classList.remove('confirmed');
+        void confMeterFill.offsetWidth;
+        confMeterFill.classList.add('confirmed');
+        setTimeout(() => confMeterFill.classList.remove('confirmed'), 420);
       }
       scrollBottom(hypBoard);
     }
@@ -2676,8 +2892,8 @@
       `).join('');
 
       pmPanel.innerHTML = `
-    <div class="pm-section">
-      <div class="pm-section-title">Root Cause</div>
+    <div class="pm-section" style="--pm-i:0">
+      <div class="pm-section-head"><span class="pm-section-head-label">Root Cause</span><div style="flex:1;height:1px;background:var(--border)"></div></div>
       <div class="pm-root-cause">${escHtml(pm.root_cause)}</div>
       <div class="pm-confidence">
         <span class="spinner" style="margin-right:4px;border-top-color:var(--green)"></span>
@@ -2686,8 +2902,8 @@
       </div>
     </div>
 
-    <div class="pm-section">
-      <div class="pm-section-title">Impact</div>
+    <div class="pm-section" style="--pm-i:1">
+      <div class="pm-section-head"><span class="pm-section-head-label">Impact</span><div style="flex:1;height:1px;background:var(--border)"></div></div>
       <div class="pm-impact-grid">
         <div class="pm-impact-card"><div class="pm-impact-label">Severity</div><div class="pm-impact-value severity-p1">${escHtml(impact.severity || '—')}</div></div>
         <div class="pm-impact-card"><div class="pm-impact-label">Downtime</div><div class="pm-impact-value">${escHtml(String(impact.duration_minutes || '—'))} min</div></div>
@@ -2700,23 +2916,23 @@
       <div class="pm-detection-gap" style="margin-top:6px">${escHtml(businessValue.disclaimer || `Estimated review labor saved: ${businessValue.estimated_engineer_hours_saved || '4.4'} engineer-hours, not claimed revenue recovery.`)}</div>
     </div>
 
-    ${evidenceHtml ? `<div class="pm-section"><div class="pm-section-title">Evidence Table</div><div class="pm-evidence-table">${evidenceHtml}</div></div>` : ''}
+    ${evidenceHtml ? `<div class="pm-section" style="--pm-i:2"><div class="pm-section-head"><span class="pm-section-head-label">Evidence Table</span><div style="flex:1;height:1px;background:var(--border)"></div></div><div class="pm-evidence-table">${evidenceHtml}</div></div>` : ''}
 
-    ${rejectedHtml ? `<div class="pm-section"><div class="pm-section-title">Rejected Hypotheses</div>${rejectedHtml}</div>` : ''}
+    ${rejectedHtml ? `<div class="pm-section" style="--pm-i:3"><div class="pm-section-head"><span class="pm-section-head-label">Rejected Hypotheses</span><div style="flex:1;height:1px;background:var(--border)"></div></div>${rejectedHtml}</div>` : ''}
 
-    ${visualDecision ? `<div class="pm-section"><div class="pm-section-title">Gemini Decision</div><div class="pm-visual-decision"><b>${escHtml(visualDecision.mode || 'visual')}</b> · ${escHtml(visualDecision.decision || '')}<br>${escHtml(visualDecision.evidence || '')}</div></div>` : ''}
+    ${visualDecision ? `<div class="pm-section" style="--pm-i:4"><div class="pm-section-head"><span class="pm-section-head-label">Gemini Decision</span><div style="flex:1;height:1px;background:var(--border)"></div></div><div class="pm-visual-decision"><b>${escHtml(visualDecision.mode || 'visual')}</b> · ${escHtml(visualDecision.decision || '')}<br>${escHtml(visualDecision.evidence || '')}</div></div>` : ''}
 
-    ${contribHtml ? `<div class="pm-section"><div class="pm-section-title">Contributing Factors</div><div class="pm-contrib">${contribHtml}</div></div>` : ''}
+    ${contribHtml ? `<div class="pm-section" style="--pm-i:5"><div class="pm-section-head"><span class="pm-section-head-label">Contributing Factors</span><div style="flex:1;height:1px;background:var(--border)"></div></div><div class="pm-contrib">${contribHtml}</div></div>` : ''}
 
-    <div class="pm-section"><div class="pm-section-title">Action Items</div>${actionsHtml}</div>
+    <div class="pm-section" style="--pm-i:6"><div class="pm-section-head"><span class="pm-section-head-label">Action Items</span><div style="flex:1;height:1px;background:var(--border)"></div></div>${actionsHtml}</div>
 
-    ${ownersHtml ? `<div class="pm-section"><div class="pm-section-title">Owner Suggestions</div>${ownersHtml}</div>` : ''}
+    ${ownersHtml ? `<div class="pm-section" style="--pm-i:7"><div class="pm-section-head"><span class="pm-section-head-label">Owner Suggestions</span><div style="flex:1;height:1px;background:var(--border)"></div></div>${ownersHtml}</div>` : ''}
 
-    <div class="pm-section"><div class="pm-section-title">Detection Gap</div><div class="pm-detection-gap">${escHtml(pm.detection_gap || '—')}</div></div>
+    <div class="pm-section" style="--pm-i:8"><div class="pm-section-head"><span class="pm-section-head-label">Detection Gap</span><div style="flex:1;height:1px;background:var(--border)"></div></div><div class="pm-detection-gap">${escHtml(pm.detection_gap || '—')}</div></div>
 
-    ${recurrenceRisk.score != null ? `<div class="pm-section"><div class="pm-section-title">Recurrence Risk</div><div class="pm-risk-card"><span class="pm-risk-score">${escHtml(String(recurrenceRisk.score))}</span>${escHtml(recurrenceRisk.label || '')} risk · ${escHtml(recurrenceRisk.rationale || '')}</div></div>` : ''}
+    ${recurrenceRisk.score != null ? `<div class="pm-section" style="--pm-i:9"><div class="pm-section-head"><span class="pm-section-head-label">Recurrence Risk</span><div style="flex:1;height:1px;background:var(--border)"></div></div><div class="pm-risk-card"><span class="pm-risk-score">${escHtml(String(recurrenceRisk.score))}</span>${escHtml(recurrenceRisk.label || '')} risk · ${escHtml(recurrenceRisk.rationale || '')}</div></div>` : ''}
 
-    ${modelHtml ? `<div class="pm-section"><div class="pm-section-title">Agent Models Used</div><div class="pm-models">${modelHtml}</div></div>` : ''}
+    ${modelHtml ? `<div class="pm-section" style="--pm-i:10"><div class="pm-section-head"><span class="pm-section-head-label">Agent Models Used</span><div style="flex:1;height:1px;background:var(--border)"></div></div><div class="pm-models">${modelHtml}</div></div>` : ''}
   `;
       // Correct top-strip chips with actual models from postmortem result
       const finalModels = pm.agent_models_used || {};
@@ -2900,7 +3116,10 @@ body{font-family:Georgia,serif;font-size:13px;line-height:1.75;color:#111;backgr
 .pm-section{margin-bottom:20px}
 .pm-section-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#666;margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .pm-section-title::after{content:'';flex:1;height:1px;background:#ddd}
-.pm-root-cause{padding:10px 14px;background:#f6faf8;border:1px solid #c6e6d8;border-radius:4px;font-size:12px;line-height:1.65}
+.pm-section-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.pm-section-head-label{font-family:Georgia,serif;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#666;white-space:nowrap}
+.pm-section-head>div[style]{background:#ddd!important}
+.pm-root-cause{padding:10px 14px;background:#f6faf8;border:1px solid #c6e6d8;border-radius:4px;font-size:15px;line-height:1.65}
 .pm-confidence{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:10px;color:#27a06a}
 .pm-impact-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .pm-impact-card{padding:8px 10px;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:4px}
@@ -3305,7 +3524,11 @@ body{font-family:Georgia,serif;font-size:13px;line-height:1.75;color:#111;backgr
     // ── Button handlers ────────────────────────────────────────────────────────
     btnInvestigate.addEventListener('click', () => {
       const id = selectEl.value;
-      if (!id) { alert('Please select an incident first.'); return; }
+      if (!id) {
+        selectEl.style.borderColor = 'var(--red)';
+        setTimeout(() => selectEl.style.borderColor = '', 1400);
+        return;
+      }
       startInvestigation(id);
     });
 

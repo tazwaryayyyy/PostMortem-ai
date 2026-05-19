@@ -1245,7 +1245,7 @@
       background: rgba(0, 229, 160, 0.035);
       border-radius: var(--radius);
       padding: 8px;
-      margin-bottom: 4px;
+      margin: 4px 10px 8px 10px;
     }
 
     .autonomy-ledger-title {
@@ -1374,16 +1374,11 @@
 
     /* Neural network firing animation */
     .agent-network {
-      position: sticky;
-      top: -10px;
-      z-index: 2;
-      align-self: flex-start;
-      width: 100%;
       background: var(--bg-panel);
       display: flex;
       flex-direction: column;
       gap: 3px;
-      margin: 0 0 8px 0;
+      margin: 8px 10px 0 10px;
       padding: 8px;
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -2310,67 +2305,67 @@
           <span class="panel-title">Agent Activity</span>
           <span class="panel-count" id="agent-count">0 dispatches</span>
         </div>
+        <!-- Agent network diagram -->
+        <div class="agent-network" id="agent-network">
+          <svg xmlns="http://www.w3.org/2000/svg" width="130" height="284" style="display:block;margin:0 auto"
+            aria-hidden="true">
+            <defs>
+              <marker id="an-arrow" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6 Z" style="fill:#1e2a38" />
+              </marker>
+            </defs>
+            <!-- Flow arrows -->
+            <path class="an-arrow-path" d="M65,38 L65,54" marker-end="url(#an-arrow)" />
+            <path class="an-arrow-path" d="M65,86 L65,102" marker-end="url(#an-arrow)" />
+            <path class="an-arrow-path" d="M65,134 L65,150" marker-end="url(#an-arrow)" />
+            <path class="an-arrow-path" d="M65,182 L65,198" marker-end="url(#an-arrow)" />
+            <path class="an-arrow-path" d="M65,230 L65,246" marker-end="url(#an-arrow)" />
+            <!-- Nodes -->
+            <g id="an-ingest">
+              <rect class="an-rect" x="10" y="8" width="110" height="28" rx="4" />
+              <text class="an-label" x="65" y="22" text-anchor="middle" dominant-baseline="central">INGEST</text>
+            </g>
+            <g id="an-hyp">
+              <rect class="an-rect" x="10" y="56" width="110" height="28" rx="4" />
+              <text class="an-label" x="65" y="70" text-anchor="middle"
+                dominant-baseline="central">HypothesisAgent</text>
+            </g>
+            <g id="an-ev">
+              <rect class="an-rect" x="10" y="104" width="110" height="28" rx="4" />
+              <text class="an-label" x="65" y="118" text-anchor="middle"
+                dominant-baseline="central">EvidenceAgent</text>
+            </g>
+            <g id="an-rc">
+              <rect class="an-rect" x="10" y="152" width="110" height="28" rx="4" />
+              <text class="an-label" x="65" y="166" text-anchor="middle"
+                dominant-baseline="central">RootCauseAgent</text>
+            </g>
+            <g id="an-crit">
+              <rect class="an-rect" x="10" y="200" width="110" height="28" rx="4" />
+              <text class="an-label" x="65" y="214" text-anchor="middle"
+                dominant-baseline="central">CriticAgent</text>
+            </g>
+            <g id="an-rep">
+              <rect class="an-rect" x="10" y="248" width="110" height="28" rx="4" />
+              <text class="an-label" x="65" y="262" text-anchor="middle"
+                dominant-baseline="central">ReportAgent</text>
+            </g>
+          </svg>
+        </div>
+        <div class="autonomy-ledger" id="autonomy-ledger">
+          <div class="autonomy-ledger-title">Autonomy Ledger</div>
+          <div class="ledger-row"><span class="ledger-label">Plan</span><span class="ledger-value"
+              id="ledger-plan">Waiting for incident trigger</span></div>
+          <div class="ledger-row"><span class="ledger-label">Tool</span><span class="ledger-value"
+              id="ledger-tool">—</span></div>
+          <div class="ledger-row"><span class="ledger-label">Why</span><span class="ledger-value"
+              id="ledger-why">—</span></div>
+          <div class="ledger-row"><span class="ledger-label">Rejected</span><span class="ledger-value"
+              id="ledger-rejected">—</span></div>
+          <div class="ledger-row"><span class="ledger-label">Confidence</span><span class="ledger-value"
+              id="ledger-confidence">0% → pending</span></div>
+        </div>
         <div class="panel-body" id="agent-feed">
-          <!-- Agent network diagram -->
-          <div class="agent-network" id="agent-network">
-            <svg xmlns="http://www.w3.org/2000/svg" width="130" height="284" style="display:block;margin:0 auto"
-              aria-hidden="true">
-              <defs>
-                <marker id="an-arrow" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
-                  <path d="M0,0 L6,3 L0,6 Z" style="fill:#1e2a38" />
-                </marker>
-              </defs>
-              <!-- Flow arrows -->
-              <path class="an-arrow-path" d="M65,38 L65,54" marker-end="url(#an-arrow)" />
-              <path class="an-arrow-path" d="M65,86 L65,102" marker-end="url(#an-arrow)" />
-              <path class="an-arrow-path" d="M65,134 L65,150" marker-end="url(#an-arrow)" />
-              <path class="an-arrow-path" d="M65,182 L65,198" marker-end="url(#an-arrow)" />
-              <path class="an-arrow-path" d="M65,230 L65,246" marker-end="url(#an-arrow)" />
-              <!-- Nodes -->
-              <g id="an-ingest">
-                <rect class="an-rect" x="10" y="8" width="110" height="28" rx="4" />
-                <text class="an-label" x="65" y="22" text-anchor="middle" dominant-baseline="central">INGEST</text>
-              </g>
-              <g id="an-hyp">
-                <rect class="an-rect" x="10" y="56" width="110" height="28" rx="4" />
-                <text class="an-label" x="65" y="70" text-anchor="middle"
-                  dominant-baseline="central">HypothesisAgent</text>
-              </g>
-              <g id="an-ev">
-                <rect class="an-rect" x="10" y="104" width="110" height="28" rx="4" />
-                <text class="an-label" x="65" y="118" text-anchor="middle"
-                  dominant-baseline="central">EvidenceAgent</text>
-              </g>
-              <g id="an-rc">
-                <rect class="an-rect" x="10" y="152" width="110" height="28" rx="4" />
-                <text class="an-label" x="65" y="166" text-anchor="middle"
-                  dominant-baseline="central">RootCauseAgent</text>
-              </g>
-              <g id="an-crit">
-                <rect class="an-rect" x="10" y="200" width="110" height="28" rx="4" />
-                <text class="an-label" x="65" y="214" text-anchor="middle"
-                  dominant-baseline="central">CriticAgent</text>
-              </g>
-              <g id="an-rep">
-                <rect class="an-rect" x="10" y="248" width="110" height="28" rx="4" />
-                <text class="an-label" x="65" y="262" text-anchor="middle"
-                  dominant-baseline="central">ReportAgent</text>
-              </g>
-            </svg>
-          </div>
-          <div class="autonomy-ledger" id="autonomy-ledger">
-            <div class="autonomy-ledger-title">Autonomy Ledger</div>
-            <div class="ledger-row"><span class="ledger-label">Plan</span><span class="ledger-value"
-                id="ledger-plan">Waiting for incident trigger</span></div>
-            <div class="ledger-row"><span class="ledger-label">Tool</span><span class="ledger-value"
-                id="ledger-tool">—</span></div>
-            <div class="ledger-row"><span class="ledger-label">Why</span><span class="ledger-value"
-                id="ledger-why">—</span></div>
-            <div class="ledger-row"><span class="ledger-label">Rejected</span><span class="ledger-value"
-                id="ledger-rejected">—</span></div>
-            <div class="ledger-row"><span class="ledger-label">Confidence</span><span class="ledger-value"
-                id="ledger-confidence">0% → pending</span></div>
-          </div>
           <div class="empty-state" id="agent-empty">
             <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg"
               aria-hidden="true">
@@ -2568,10 +2563,9 @@
       hypBoard.appendChild(emptyHyp);
       traceEl.innerHTML = '<div class="empty-state"><svg width="16" height="40" viewBox="0 0 16 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><line x1="8" y1="0" x2="8" y2="40" stroke="var(--text-dim)" stroke-width="1" stroke-dasharray="3 5"/></svg><div>Starting investigation...</div></div>';
       pmPanel.innerHTML = '<div class="empty-state"><svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M2,2 L20,2 L26,8 L26,34 L2,34 Z" stroke="var(--text-dim)" stroke-width="1"/><path d="M20,2 L20,8 L26,8" stroke="var(--text-dim)" stroke-width="1"/><line x1="7" y1="15" x2="21" y2="15" stroke="var(--text-dim)" stroke-width="1"/><line x1="7" y1="21" x2="21" y2="21" stroke="var(--text-dim)" stroke-width="1"/><line x1="7" y1="27" x2="21" y2="27" stroke="var(--text-dim)" stroke-width="1"/></svg><div>Report pending...</div></div>';
-      agentFeed.innerHTML = '';
-      agentFeed.appendChild(agentNetwork);
-      agentFeed.appendChild(autonomyLedger);
-      agentFeed.appendChild(agentEmpty);
+      const cards = agentFeed.querySelectorAll('.agent-dispatch-card');
+      cards.forEach(c => c.remove());
+      agentEmpty.style.display = 'flex';
       agentEmpty.style.display = 'none';
       updateLedger({
         plan: 'Collect signals, propose hypotheses, disprove false leads',

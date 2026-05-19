@@ -79,6 +79,16 @@ postmortem-ai/
 └── requirements.txt
 ```
 
+```
+PagerDuty Webhook ──► HypothesisAgent ──► EvidenceAgent (×3 tools per hypothesis)
+                                                │
+                                                ▼
+                                       RootCauseAgent ──► CriticAgent (Gemini, cross-provider)
+                                                │
+                                                ▼
+                                          ReportAgent ──► Postmortem
+```
+
 EvidenceAgent runs on `llama-3.1-8b-instant` because it executes in a tight loop -- one call per tool result per hypothesis -- so speed matters more than reasoning depth at that stage. HypothesisAgent and RootCauseAgent use `llama-3.3-70b-versatile` because hypothesis generation and synthesis are the two steps where reasoning quality directly affects whether the agent reaches the correct conclusion. ReportAgent uses `compound-beta` because it specializes in structured output, which produces cleaner markdown sections than a general-purpose model. CriticAgent uses **Google Gemini** (tries `gemini-2.0-flash` first, then `gemini-2.5-flash`, falls back to Groq `qwen-qwen3-32b`) specifically because it is a different provider and model family from the rest of the pipeline: an adversarial critic from a completely independent inference stack cannot share implicit reasoning biases with the chain it is challenging. All Llama-based agents use **Vultr Serverless Inference** as primary (when `VULTR_API_KEY` is set), with Groq as fallback.
 
 | Agent           | Model                                              | Role                                              |

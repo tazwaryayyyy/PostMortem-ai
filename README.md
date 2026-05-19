@@ -186,6 +186,8 @@ docker compose up --build -d --force-recreate --remove-orphans
 | `GROQ_API_KEY`                  | required                 | Groq API key — fallback for all Llama agents   |
 | `VULTR_API_KEY`                 | optional                 | Vultr Serverless Inference — primary provider for all Llama agents (recommended) |
 | `GOOGLE_API_KEY`                | required                 | Gemini: VisionAgent (screenshots + inference) + CriticAgent (adversarial reasoning) |
+| `PAGERDUTY_WEBHOOK_SECRET`      | optional                 | When set, validates `X-PagerDuty-Signature` HMAC-SHA256 on incoming webhooks |
+| `GITHUB_TOKEN`                  | optional                 | GitHub personal access token — raises `/tools/github` rate limit from 60 to 5,000 req/hr |
 | `MAX_CONCURRENT_INVESTIGATIONS` | `10`                     | Semaphore limit on concurrent streams          |
 | `DB_PATH`                       | `investigations.db`      | SQLite database file path                      |
 | `TOOL_API_BASE_URL`             | `http://localhost:8000`  | Base URL for live tool HTTP endpoints          |

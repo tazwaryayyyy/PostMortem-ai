@@ -722,7 +722,7 @@ class PostMortemCoordinator:
             if hyp["should_reject"]:
                 self.rejected.append(hyp)
                 self.timeline.append({
-                    "timestamp": self.incident["start_time"],
+                    "timestamp": self.incident.get("start_time", ""),
                     "event": f"Hypothesis considered: {hyp['description']}",
                     "misleading": True,
                     "note": hyp["rejection_evidence"],
@@ -785,7 +785,7 @@ class PostMortemCoordinator:
 
                 self.conclusion = hyp
                 self.timeline.append({
-                    "timestamp": self.incident["start_time"],
+                    "timestamp": self.incident.get("start_time", ""),
                     "event": f"Root cause confirmed: {hyp['description']}",
                     "misleading": False,
                     "note": hyp["confirming_evidence"],

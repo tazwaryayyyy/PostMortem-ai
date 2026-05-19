@@ -6,7 +6,7 @@ Demonstrates infinite scenario coverage for demos.
 """
 
 import json
-import os
+import re
 import uuid
 from pathlib import Path
 
@@ -117,8 +117,7 @@ def generate_incident(
     incident_uuid = uuid.uuid4().hex[:8]
 
     # Sanitize service_name to prevent prompt injection via special characters.
-    import re as _re
-    service_name = _re.sub(r"[^a-zA-Z0-9\-_.]", "-", service_name)[:60]
+    service_name = re.sub(r"[^a-zA-Z0-9\-_.]", "-", service_name)[:60]
 
     prompt = _GENERATION_PROMPT.format(
         service_name=service_name,
@@ -139,10 +138,8 @@ def generate_incident(
     # Strip markdown fences and slice to outermost JSON braces
     raw = raw.strip()
     if raw.startswith("```"):
-        import re as _re_fence
-        raw = _re_fence.sub(r"^```[a-zA-Z]*\s*\n?", "", raw)
-        raw = _re_fence.sub(r"\n?```.*$", "", raw,
-                            flags=_re_fence.MULTILINE).strip()
+        raw = re.sub(r"^```[a-zA-Z]*\s*\n?", "", raw)
+        raw = re.sub(r"\n?```.*$", "", raw, flags=re.MULTILINE).strip()
     _s, _e = raw.find("{"), raw.rfind("}") + 1
     if _s != -1 and _e > _s:
         raw = raw[_s:_e]

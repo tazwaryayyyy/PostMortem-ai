@@ -16,7 +16,7 @@ PostMortem.ai runs a production incident through six specialist agents in about 
 
 The system is designed to be wrong first. The first hypothesis is always a deliberate red herring -- something plausible that the evidence chain must disprove before moving on. The CriticAgent runs on **Gemini** (Google), a completely different provider from the rest of the pipeline (Vultr Serverless Inference / Groq), so it has no shared reasoning context to agree with. It only sees the conclusion and the evidence, and it is prompted to find holes.
 
-## Grand Prize Story
+## Why It Exists
 
 > Most incident tools tell teams what is broken.
 > PostMortem.ai tells them what is misleading.
@@ -221,12 +221,6 @@ docker compose up --build -d --force-recreate --remove-orphans
 | `incident_e` | Silent Payment Cascade -- Stripe TLS Rotation  | $312K  |
 
 `incident_e` is the recommended demo. The $312K Stripe TLS cascade triggers the CriticAgent debate most reliably.
-
-## Submission Narrative
-
-**Short description:** Autonomous incident commander that proves misleading root-cause hypotheses wrong before generating an auditable postmortem.
-
-**Long description:** PostMortem.ai coordinates six specialist agents to investigate production incidents end-to-end. It ingests PagerDuty, Slack, logs, metrics, deploy history, and Gemini visual evidence; plans evidence-gathering steps; calls live HTTP tool endpoints; rejects false leads; escalates low-confidence conclusions; asks an independent CriticAgent to challenge the result; and produces an enterprise postmortem with owners, recurrence risk, detection gaps, and estimated review-cost savings.
 
 **Demo path:** Click `Judge Mode`. The app simulates a PagerDuty webhook, runs the autonomous investigation, shows false-lead rejection, promotes Gemini visual evidence into the evidence plan, displays a CriticAgent challenge, and generates the final report.
 
